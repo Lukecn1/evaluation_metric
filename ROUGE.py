@@ -20,7 +20,7 @@ stopwords_.update([',', '.','-', ';','\n','\r', '\xa0', '.'])
 ###################### EVALUATION FUNCTIONS ######################
 
 # Returns the n-grams for a given string
-# Note: each word is stemmed to its root form and stopwords are removed
+# Note: each word is stemmed to its root form
 def get_ngrams(summary, n, remove_stopwords):
 
     n_grams = list()
