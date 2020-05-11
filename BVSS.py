@@ -22,26 +22,24 @@ bert_client = BertClient(ip = 'localhost', check_length = False)
 
 
 def tokenize_summaries(ref_sum, cand_sum, language, n = None):
-  """
-  Parameters:
-  ref_sum, cand_sum: strings
-  language: string
-  n: tokenization level (if left "None" level is sentence)
+    """
+    Parameters:
+    ref_sum, cand_sum: strings
+    language: string
+    n: tokenization level (if left "None" level is sentence)
 
-  returns: Lists of tokens/n-grams  
-  """
+    returns: Lists of tokens/n-grams  
+    """
 
-  if n == None:
-    ref_sum_tokens = nltk.sent_tokenize(ref_sum, language = language)
-    cand_sum_tokens = nltk.sent_tokenize(cand_sum, language = language)
+    if n == None:
+        ref_sum_tokens = nltk.sent_tokenize(ref_sum, language = language)
+        cand_sum_tokens = nltk.sent_tokenize(cand_sum, language = language)
 
-  else:
-    ref_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(ref_sum), n))
-    cand_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(cand_sum), n))
+    else:
+        ref_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(ref_sum), n))
+        cand_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(cand_sum), n))
 
-  return ref_sum_tokens, cand_sum_tokens
-
-
+    return ref_sum_tokens, cand_sum_tokens
 
 
 def gen_bert_vectors(candidate_summary, reference_summary):
@@ -78,10 +76,10 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
         - :param: `model` (str): the specific bert model to use
         - :param: `Layer` (int): the layer of representation to use.
         - :param: `language` (str): language of the inputs.
-                   performance may vary for non-english langauges on english pre-trained bert models     
+                  performance may vary for non-english langauges on english pre-trained bert models     
         - :param: `scoring_approach` (str): defines whether to use the argmax or mean-based scoring approaches.
-                   argmax returns the score of the highest scoring reference sentence for each candidate sentence 
-                   mean-based returns the mean of all reference sentence scores for each candidate sentence 
+                  argmax returns the score of the highest scoring reference sentence for each candidate sentence 
+                  mean-based returns the mean of all reference sentence scores for each candidate sentence 
 
     Return:
         - :param: precision score (float): precision score for the candidate summary 
@@ -89,33 +87,43 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
         - :param: f1 score (float): f1 score for the candidate summary 
     """
     
-    precision_scores = []
-    recall_scores = []
-    f1_scores = []
+    final_precision_scores = []
+    final_recall_scores = []
+    final_f1_scores = []
 
     if scoring_approach == 'argmax':
         for cand_sent in cand_sentences:
             p, r, f1 = bert_score.score([cand_sent], [ref_sentences], model_type = model, num_layers = layer, lang = language) # BERTscore defaults to taking the argmax value when multiple references are given for 1 candidate sentence
-            precision_scores.append(p.tolist()[0])
-            recall_scores.append(r.tolist()[0])
-            f1_scores.append(f1.tolist()[0])
+            final_precision_scores.append(p.tolist()[0])
+            final_recall_scores.append(r.tolist()[0])
+            final_f1_scores.append(f1.tolist()[0])
 
     elif scoring_approach == 'mean':
         for cand_sent in cand_sentences:
+            precision_scores = 0.0
+            recall_scores = 0.0
+            f1_scores = 0.0
             for ref_sent in ref_sentences:
-                p, r, f1 = bert_score.score([cand_sent], [ref_sent], model_type = model, num_layers = layer, lang = language)  
-                precision_scores.append(p.tolist()[0])
-                recall_scores.append(r.tolist()[0])
-                f1_scores.append(f1.tolist()[0])
+                p, r, f1 = bert_score.score([cand_sent], [ref_sent], model_type = model, num_layers = layer, lang = language)  # BERTscore is the argmax of each word-comparision, we take the mean of the total argmax score for each candidate sentence
+                precision_scores += p.tolist()[0]
+                recall_scores += r.tolist()[0]
+                f1_scores += f1.tolist()[0]
+            
+            # Divide with len(ref_sentences) to get the average for each candidate sentence
+            final_precision_scores.append(precision_scores / len(ref_sentences))
+            final_recall_scores.append(recall_scores / len(ref_sentences))
+            final_f1_scores.append(f1_scores / len(ref_sentences))
     
     else:
       print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
+      return None
 
-    precision_mean = sum(precision_scores)  / len(precision_scores)
-    recall_mean = sum(recall_scores)  / len(recall_scores)
-    f1_mean = sum(f1_scores)  / len(f1_scores)
+    # Final score is simply the average of the precision, recall and f1 score of each sentence in the candidate summary
+    precision_score = sum(final_precision_scores)  / len(final_precision_scores)
+    recall_score = sum(final_recall_scores)  / len(final_recall_scores)
+    f1_score = sum(final_f1_scores)  / len(final_f1_scores)
 
-    return precision_mean, recall_mean, f1_mean
+    return precision_score, recall_score, f1_score
 
 
 #cand_test = ["The cat in the hat got hit with the bat.", "The man got sad and sat on his back."]
@@ -124,8 +132,7 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
 
 
 def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_approach):
-
-  """
+    """
     BVSS metric
 
     Args:
@@ -134,10 +141,10 @@ def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_appr
         - :param: `model` (str): the specific bert model to use
         - :param: `Layer` (int): the layer of representation to use.
         - :param: `language` (str): language of the inputs.
-                   performance may vary for non-english langauges on english pre-trained bert models     
+                  performance may vary for non-english langauges on english pre-trained bert models     
         - :param: `scoring_approach` (str): defines whether to use the argmax or mean-based scoring approaches.
-                   argmax returns the score of the highest scoring reference sentence for each candidate sentence 
-                   mean-based returns the mean of all reference sentence scores for each candidate sentence 
+                  argmax returns the score of the highest scoring reference sentence for each candidate sentence 
+                  mean-based returns the mean of all reference sentence scores for each candidate sentence 
 
     Return:
         - :param: precision score (float): precision score for the candidate summary 
@@ -145,19 +152,34 @@ def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_appr
         - :param: f1 score (float): f1 score for the candidate summary 
     """
 
+    if scoring_approach != 'argmax' or scoring_approach != 'mean':
+      print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
+      return None
 
-    precision_scores = []
-    recall_scores = []
-    f1_scores = []
+    final_precision_scores = []
+    final_recall_scores = []
+    final_f1_scores = []
 
-    if scoring_approach == 'argmax':
-        for cand_sent in cand_sentences:
-            for ref_sent in ref_sentences:
+    # These will be the result of the n-gram tokenization function
+    candidate_vectors, reference_vectors = []
 
+    final_cosines = []
 
+    for cand_vec in candidate_vectors:
+        cosines = []
+        for ref_vec in reference_vectors:
+            cosines.append( 1 - cosine(cand_vec, ref_vec) )
 
-    precision_mean = sum(precision_scores)  / len(precision_scores)
-    recall_mean = sum(recall_scores)  / len(recall_scores)
-    f1_mean = sum(f1_scores)  / len(f1_scores)
+        if scoring_approach == 'argmax':
+            final_cosines.append(max(cosines))
+        
+        if scoring_approach == 'mean':
+            final_cosines.append(sum(cosines) / len(cosines))
+    
+    cosine_sum = sum(cosines)
 
-    return precision_mean, recall_mean, f1_mean
+    precision_score = cosine_sum  / len(candidate_vectors)
+    recall_score = cosine  / len(final_recall_scores)
+    f1_score = sum(final_f1_scores)  / len(final_f1_scores)
+
+    return precision_score, recall_score, f1_score
