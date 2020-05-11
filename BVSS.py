@@ -109,14 +109,14 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
                 recall_scores += r.tolist()[0]
                 f1_scores += f1.tolist()[0]
             
-            # Divide with len(ref_sentences) to get the average for each candidate sentence
+            # Divide with len(ref_sentences) to get the mean BERTscore for each candidate sentence
             final_precision_scores.append(precision_scores / len(ref_sentences))
             final_recall_scores.append(recall_scores / len(ref_sentences))
             final_f1_scores.append(f1_scores / len(ref_sentences))
     
     else:
-      print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
-      return None
+        print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
+        return None
 
     # Final score is simply the average of the precision, recall and f1 score of each sentence in the candidate summary
     precision_score = sum(final_precision_scores)  / len(final_precision_scores)
@@ -153,12 +153,8 @@ def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_appr
     """
 
     if scoring_approach != 'argmax' or scoring_approach != 'mean':
-      print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
-      return None
-
-    final_precision_scores = []
-    final_recall_scores = []
-    final_f1_scores = []
+        print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
+        return None
 
     # These will be the result of the n-gram tokenization function
     candidate_vectors, reference_vectors = []
@@ -178,8 +174,8 @@ def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_appr
     
     cosine_sum = sum(cosines)
 
-    precision_score = cosine_sum  / len(candidate_vectors)
-    recall_score = cosine  / len(final_recall_scores)
-    f1_score = sum(final_f1_scores)  / len(final_f1_scores)
+    precision = cosine_sum  / len(candidate_vectors)
+    recall = cosine  / len(reference_vectors)
+    f1 = 2 * (precision * recall) / (precision + recall) 
 
-    return precision_score, recall_score, f1_score
+    return precision, recall, f1
