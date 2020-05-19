@@ -1,19 +1,16 @@
 import pandas as pd 
 import numpy as np
 import torch
+import nltk
 import transformers
 import bert_score
-import nltk
 
-from bert_serving.client import BertClient
-from matplotlib import pyplot as plt
-from sklearn.metrics.pairwise import cosine_similarity
-#from sklearn.decomposition import pca
+#from bert_serving.client import BertClient
 from scipy.spatial.distance import cosine
 
 #df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
 
-bert_client = BertClient(ip = 'localhost', check_length = False)
+#bert_client = BertClient(ip = 'localhost', check_length = False)
 
 # print(df_tac.columns)
 
@@ -30,6 +27,22 @@ def tokenize_summaries(ref_sum, cand_sum, language, n = None):
 
     returns: Lists of tokens/n-grams  
     """
+
+    """
+    notes: 
+
+    different pooling strategies --> specify which to be used
+
+    Should not truncate the sentences --> set encode parameter for thise to "not truncate"
+
+    include list of valid values for vector_level --> n-gram, sentence etc. (Scale down to n = 1 and up so that 1 vector for an entire summary)
+
+    return_tensors: set the value so that it returns the torch sensors
+
+
+    """
+
+
 
     if n == None:
         ref_sum_tokens = nltk.sent_tokenize(ref_sum, language = language)
