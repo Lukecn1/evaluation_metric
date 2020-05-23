@@ -4,9 +4,12 @@ import torch
 import nltk
 import transformers
 import bert_score
-
 from bert_serving.client import BertClient
+from bert_serving.server.helper import get_args_parser
+from bert_serving.server import BertServer
+
 from scipy.spatial.distance import cosine
+
 
 #df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
 
@@ -16,7 +19,7 @@ from scipy.spatial.distance import cosine
 
 ###### HELPER FUNCTIONS ####### 
 
-def launch_bert_as_service_server():
+def launch_bert_server(model_name, layer):
     """
     Launches a BERT-as-service server used to encode the sentences using the designated BERT model
     https://github.com/hanxiao/bert-as-service
@@ -32,6 +35,22 @@ def launch_bert_as_service_server():
         - :param: `pooling_strategy` (str): the vector combination strategy 
         
     """
+
+    model_path = bert_model_directories[model_name]
+    pooling_layer = layers[layer]
+
+    args = get_args_parser().parse_args(['-model_dir', model_path,
+                                     '-port', '5555',
+                                     '-port_out', '5556',
+                                     '-max_seq_len', 'NONE',
+                                     '-mask_cls_sep',
+                                     '-pooling_layer', str(pooling_layer)],
+                                     '-num_workers', '=1')
+                                     
+    server = BertServer(args)
+    print()
+    server.start()
+    
 
 
 
@@ -71,12 +90,15 @@ def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_s
     steps:
 
     1) Start the server
-        1.1) Ensure that server is fully launched and ready to recieve requests before the rest of the method is run
+        1.1) Ensure that server is fully launched and ready to recieve requests before the rest of the method is run --> print statements to prompt the user
     2) Produce the vector
     3) Extract and combine at the designated level
     4) return the final vectors
 
     """
+    
+    launch_bert_as_service_server()
+    
     candidate_vectors = bert_client.encode(candidate_summary)
     reference_vectors = bert_client.encode(reference_summary)
     
