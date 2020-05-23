@@ -5,70 +5,78 @@ import nltk
 import transformers
 import bert_score
 
-#from bert_serving.client import BertClient
+from bert_serving.client import BertClient
 from scipy.spatial.distance import cosine
 
 #df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
 
-#bert_client = BertClient(ip = 'localhost', check_length = False)
 
 # print(df_tac.columns)
 
 
 ###### HELPER FUNCTIONS ####### 
 
-
-def tokenize_summaries(ref_sum, cand_sum, language, n = None):
+def launch_bert_as_service_server():
     """
-    Parameters:
-    ref_sum, cand_sum: strings
-    language: string
-    n: tokenization level (if left "None" level is sentence)
+    Launches a BERT-as-service server used to encode the sentences using the designated BERT model
+    https://github.com/hanxiao/bert-as-service
 
-    returns: Lists of tokens/n-grams  
-    """
+    Args:
+        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
 
-    """
-    notes: 
-
-    different pooling strategies --> specify which to be used
-
-    Should not truncate the sentences --> set encode parameter for thise to "not truncate"
-
-    include list of valid values for vector_level --> n-gram, sentence etc. (Scale down to n = 1 and up so that 1 vector for an entire summary)
-
-    return_tensors: set the value so that it returns the torch sensors
-
-
+        - :param  'n_gram_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
+                                        if 'none' -> embedding level defaults to the sentence level of each individual sentence
+        
+        - :param: `model` (str): the specific bert model to use
+        - :param: `layer` (int): the layer of representation to use.
+        - :param: `pooling_strategy` (str): the vector combination strategy 
+        
     """
 
 
 
-    if n == None:
-        ref_sum_tokens = nltk.sent_tokenize(ref_sum, language = language)
-        cand_sum_tokens = nltk.sent_tokenize(cand_sum, language = language)
-
-    else:
-        ref_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(ref_sum), n))
-        cand_sum_tokens = list(nltk.ngrams(nltk.word_tokenize(cand_sum), n))
-
-    return ref_sum_tokens, cand_sum_tokens
-
-
-def gen_bert_vectors(candidate_summary, reference_summary):
+def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_strategy):
     """
     Generates the embedding vectors for the given sentences/tokens
     Uses the BERT as Service Client to produce the vectors. 
 
     Args:
-        - :param: `candidate_summary` (list of str): candidate summary sentences
-        - :param: `reference_summary` (list of str): reference summary sentences
-    
+        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
+
+        - :param  'n_gram_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
+                                        if 'none' -> embedding level defaults to the sentence level of each individual sentence
+        
+        - :param: `model` (str): the specific bert model to use
+        - :param: `layer` (int): the layer of representation to use.
+        - :param: `pooling_strategy` (str): the vector combination strategy 
+        
     Return:
-        - :param: candidate_vectors (list of lists of float): matrix of vectors for the candidate summary
-        - :param: reference_vectors (list of lists of float): matrix of vectors for the reference summary
+        - :param: embedding_vectors (list of lists of float): list of embedding vectors for the summaries
+                  each summary has a list of vectors
     """
 
+    """
+    notes: 
+
+    start server from distiinct method for that --> parse the arguments as the guide shows
+
+    different pooling strategies --> specify which to be used
+
+    Should not truncate the sentences --> set encode parameter for this to "not truncate"
+
+    include list of valid values for vector_level --> n-gram, sentence etc. (Scale up to n = 1 and up so that 1 vector for an entire summary)
+
+    return_tensors: set the value so that it returns the torch sensors
+
+    steps:
+
+    1) Start the server
+        1.1) Ensure that server is fully launched and ready to recieve requests before the rest of the method is run
+    2) Produce the vector
+    3) Extract and combine at the designated level
+    4) return the final vectors
+
+    """
     candidate_vectors = bert_client.encode(candidate_summary)
     reference_vectors = bert_client.encode(reference_summary)
     
@@ -144,16 +152,13 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
 #get_bertscore(cand_test, ref_test, 'bert-base-uncased', 9, 'en', 'argmax')
 
 
-def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_approach):
+def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     """
     BVSS metric
 
     Args:
-        - :param: `cand_sentences` (list of str): candidate summary sentences
-        - :param: `ref_sentences` (list of str): reference summary sentences
-        - :param: `model` (str): the specific bert model to use
-        - :param: `Layer` (int): the layer of representation to use.
-        - :param: `language` (str): language of the inputs.
+        - :param: `candidate_vectors` (list of list of float): candidate summary embedding vectors
+        - :param: `ref_sentences` (list of list of float): reference summary embedding vectors
                   performance may vary for non-english langauges on english pre-trained bert models     
         - :param: `scoring_approach` (str): defines whether to use the argmax or mean-based scoring approaches.
                   argmax returns the score of the highest scoring reference sentence for each candidate sentence 
@@ -168,9 +173,6 @@ def get_bvss(cand_sentences, ref_sentences, model, layer, language, scoring_appr
     if scoring_approach != 'argmax' or scoring_approach != 'mean':
         print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
         return None
-
-    # These will be the result of the n-gram tokenization function
-    candidate_vectors, reference_vectors = []
 
     final_cosines = []
 
