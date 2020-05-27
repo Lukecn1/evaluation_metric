@@ -7,8 +7,10 @@ import bert_score
 from bert_serving.client import BertClient
 from bert_serving.server.helper import get_args_parser
 from bert_serving.server import BertServer
-
 from scipy.spatial.distance import cosine
+
+from utils import bert_model_directories, layers_base, pooling_strategies
+
 
 
 #df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
@@ -19,7 +21,19 @@ from scipy.spatial.distance import cosine
 
 ###### HELPER FUNCTIONS ####### 
 
-def launch_bert_server(model_name, layer):
+# Container for the server object
+server = ""
+
+def get_ngram_embedding_vectors():
+    """
+    Recieves a list of vectors representing word level vectors, and combines the word-level vectors into n-gram vectors.
+    Uses
+
+
+    """
+
+
+def launch_bert_as_service_server(model_name, layer, encoding_level, pooling_strategy = None):
     """
     Launches a BERT-as-service server used to encode the sentences using the designated BERT model
     https://github.com/hanxiao/bert-as-service
@@ -32,26 +46,48 @@ def launch_bert_server(model_name, layer):
         
         - :param: `model` (str): the specific bert model to use
         - :param: `layer` (int): the layer of representation to use.
-        - :param: `pooling_strategy` (str): the vector combination strategy 
+        - :param: `encoding_level` (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
+        - :param: `pooling_strategy` (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
         
     """
 
     model_path = bert_model_directories[model_name]
-    pooling_layer = layers[layer]
+    pooling_layer = layers_base[layer]
 
-    args = get_args_parser().parse_args(['-model_dir', model_path,
-                                     '-port', '5555',
-                                     '-port_out', '5556',
-                                     '-max_seq_len', 'NONE',
-                                     '-mask_cls_sep',
-                                     '-pooling_layer', str(pooling_layer)],
-                                     '-num_workers', '=1')
-                                     
-    server = BertServer(args)
-    print()
-    server.start()
+    server_parameters = ""
+        
+    if encoding_level == 'sentence':
+
+        if pooling_strategy not in pooling_strategies:
+            print('"pooling_strategy" must be defined as one of the following:', pooling_strategies)
+            return
+
+        server_parameters = get_args_parser().parse_args(['-model_dir', model_path,
+                                        '-port', '5555',
+                                        '-port_out', '5556',
+                                        '-max_seq_len', 'NONE',                                        
+                                        '-pooling_layer', pooling_layer,
+                                        '-pooling_strategy', pooling_strategy, 
+                                        '-num_workers', '=1'])
     
+    elif encoding_level == 'word':
+        server_parameters = get_args_parser().parse_args(['-model_dir', model_path,
+                                        '-port', '5555',
+                                        '-port_out', '5556',
+                                        '-max_seq_len', 'NONE',                                        
+                                        '-pooling_layer', pooling_layer,
+                                        '-pooling_strategy', 'NONE',
+                                        '-num_workers', '=1'])
+    else:
+        print('"encoding_level" must be designated as either "sentence" or "word", see README for descriptions')
+        return
 
+    server = BertServer(server_parameters)
+    print("LAUNCHING SERVER, PLEASE HOLD", '\n')
+    server.start()
+    # Include a check here that ensures that the server is running before printing the below statement
+    print("SERVER RUNNING, BEGGINING ENCODINGS...")
+    
 
 
 def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_strategy):
@@ -90,6 +126,7 @@ def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_s
     steps:
 
     1) Start the server
+        1.1) Pooling strategies
         1.1) Ensure that server is fully launched and ready to recieve requests before the rest of the method is run --> print statements to prompt the user
     2) Produce the vector
     3) Extract and combine at the designated level
@@ -98,11 +135,12 @@ def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_s
     """
     
     launch_bert_as_service_server()
-    
-    candidate_vectors = bert_client.encode(candidate_summary)
-    reference_vectors = bert_client.encode(reference_summary)
-    
-    return candidate_vectors, reference_vectors
+    bert_client = BertClient()
+    embedding_vectors = bert_client.encode(summaries)
+    print("ENCODINGS COMPLETED, TERMINATING SERVER")
+    server.stop()
+
+    return embedding_vectors
 
 
 
