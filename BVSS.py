@@ -15,38 +15,36 @@ from utils import bert_model_directories, layers_base, pooling_strategies
 
 #df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
 
-
 # print(df_tac.columns)
-
 
 ###### HELPER FUNCTIONS ####### 
 
 # Container for the server object
-server = ""
 
-def get_ngram_embedding_vectors():
+def get_ngram_embedding_vectors(candidate_vectors, reference_vectors, n_gram_encoding, pooling_strategy):
     """
     Recieves a list of vectors representing word level vectors, and combines the word-level vectors into n-gram vectors.
-    Uses
-
-
+    
+    Args:
+        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
+        - :param  'n_gram_encoding' (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
+        - :param: `encoding_level` (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
+        - :param: `pooling_strategy` (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
     """
 
+    
 
-def launch_bert_as_service_server(model_name, layer, encoding_level, pooling_strategy = None):
+
+def launch_bert_as_service_server(model_name, layer, encoding_level = None, pooling_strategy = None):
     """
     Launches a BERT-as-service server used to encode the sentences using the designated BERT model
     https://github.com/hanxiao/bert-as-service
 
     Args:
-        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
-
-        - :param  'n_gram_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
+        - :param: `model_name` (str): the specific bert model to use
+        - :param: `layer` (int): the layer of representation to use
+        - :param  'encoding_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
                                         if 'none' -> embedding level defaults to the sentence level of each individual sentence
-        
-        - :param: `model` (str): the specific bert model to use
-        - :param: `layer` (int): the layer of representation to use.
-        - :param: `encoding_level` (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
         - :param: `pooling_strategy` (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
         
     """
@@ -56,7 +54,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level, pooling_str
 
     server_parameters = ""
         
-    if encoding_level == 'sentence':
+    if encoding_level == None:
 
         if pooling_strategy not in pooling_strategies:
             print('"pooling_strategy" must be defined as one of the following:', pooling_strategies)
@@ -70,7 +68,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level, pooling_str
                                         '-pooling_strategy', pooling_strategy, 
                                         '-num_workers', '=1'])
     
-    elif encoding_level == 'word':
+    elif encoding_level >=1:
         server_parameters = get_args_parser().parse_args(['-model_dir', model_path,
                                         '-port', '5555',
                                         '-port_out', '5556',
@@ -79,27 +77,29 @@ def launch_bert_as_service_server(model_name, layer, encoding_level, pooling_str
                                         '-pooling_strategy', 'NONE',
                                         '-num_workers', '=1'])
     else:
-        print('"encoding_level" must be designated as either "sentence" or "word", see README for descriptions')
+        print('"encoding_level" must be >=1 or None, see README for descriptions')
         return
 
     server = BertServer(server_parameters)
     print("LAUNCHING SERVER, PLEASE HOLD", '\n')
     server.start()
     # Include a check here that ensures that the server is running before printing the below statement
-    print("SERVER RUNNING, BEGGINING ENCODINGS...")
+    print("SERVER RUNNING, BEGGINING ENCODING...")
     
 
 
-def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_strategy):
+
+def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encoding: None, model, layer, pooling_strategy):
     """
     Generates the embedding vectors for the given sentences/tokens
     Uses the BERT as Service Client to produce the vectors. 
 
     Args:
-        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
+        - :param: `candidate_summaries` (list of list of strings): candidate summaries to be encoded - each summary should be represented as a list of sentences
+        - :param: `reference_summaries` (list of list of strings): reference summaries to be encoded - each summary should be represented as a list of sentences
 
-        - :param  'n_gram_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
-                                        if 'none' -> embedding level defaults to the sentence level of each individual sentence
+        - :param  'n_gram_encoding' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
+                                        if 'None' -> embedding level defaults to the sentence level of each individual sentence
         
         - :param: `model` (str): the specific bert model to use
         - :param: `layer` (int): the layer of representation to use.
@@ -136,11 +136,23 @@ def get_embedding_vectors(summaries, n_gram_level: None, model, layer, pooling_s
     
     launch_bert_as_service_server()
     bert_client = BertClient()
-    embedding_vectors = bert_client.encode(summaries)
-    print("ENCODINGS COMPLETED, TERMINATING SERVER")
-    server.stop()
 
-    return embedding_vectors
+    candidate_embeddings = []
+    reference_embeddings = []
+
+    #Generates the embedding vectors for each summary. If the 
+    for i in range(len(candidate_embeddings)):
+        candidate_embeddings.append(bert_client.encode(candidate_summaries[i]))
+        reference_embeddings.append(bert_client.encode(reference_summaries[i]))
+
+    print("ENCODINGS COMPLETED, TERMINATING SERVER")
+    BertServer.shutdown(port=5555)
+
+    if n_gram_encoding == None:
+        return candidate_embeddings, reference_embeddings
+    elif n_gram_encoding >= 1:
+        get_ngram_embedding_vectors(candidate_embeddings, reference_embeddings, n_gram_encoding, pooling_strategy, ) 
+
 
 
 
