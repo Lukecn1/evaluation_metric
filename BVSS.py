@@ -5,7 +5,7 @@ import nltk
 import transformers
 import bert_score
 from bert_serving.client import BertClient
-from bert_serving.server.helper import get_args_parser
+from bert_serving.server.helper import get_args_parser, get_shutdown_parser
 from bert_serving.server import BertServer
 from scipy.spatial.distance import cosine
 
@@ -26,13 +26,31 @@ def get_ngram_embedding_vectors(candidate_vectors, reference_vectors, n_gram_enc
     Recieves a list of vectors representing word level vectors, and combines the word-level vectors into n-gram vectors.
     
     Args:
-        - :param: `summaries` (list of list of strings): summaries to be encoded -each summary should be represented as a list of sentences
+        - :param: `candidate_vectors`, `reference_vectors`  (list of lists of floats (or [CLS]/[SEP]/[UNK]) ): embedding vectors for each token in each sentence -> each sentence is represented a matrix 
+                                                                                         entire list contains all the matricies for all of the summaries 
+                                                                                         
         - :param  'n_gram_encoding' (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
         - :param: `encoding_level` (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
         - :param: `pooling_strategy` (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
+
+    Return:
+        - :param: - combined_candidate_vectors. combined_reference_vectors (list of list of floats): list of matricies of the embedding vectors for candidate and refernece summaries 
     """
 
-    
+    """
+    - Make a slicing functionality that makes the n-gram slices for each sentence matrix. 
+        1) Check number of n-grams between the [CLS] and [SEP] tokens. 
+        2) 
+
+        - How do we Handle Unknown tokens? 
+            - What does the vector look like and do we need to make specific funtionality for this? 
+        - How do we handle OOV words? 
+
+    """
+
+
+
+
 
 
 def launch_bert_as_service_server(model_name, layer, encoding_level = None, pooling_strategy = None):
@@ -46,7 +64,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
         - :param  'encoding_level' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
                                         if 'none' -> embedding level defaults to the sentence level of each individual sentence
         - :param: `pooling_strategy` (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
-        
+    
     """
 
     model_path = bert_model_directories[model_name]
@@ -106,8 +124,8 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
         - :param: `pooling_strategy` (str): the vector combination strategy 
         
     Return:
-        - :param: embedding_vectors (list of lists of float): list of embedding vectors for the summaries
-                  each summary has a list of vectors
+        - :param: candidate_embeddings, reference_embeddings (list of lists of float): list of embedding vectors for the summaries
+                  each summary has a list of vectors (i.e. a matrix)
     """
 
     """
@@ -125,15 +143,12 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
 
     steps:
 
-    1) Start the server
-        1.1) Pooling strategies
-        1.1) Ensure that server is fully launched and ready to recieve requests before the rest of the method is run --> print statements to prompt the user
-    2) Produce the vector
     3) Extract and combine at the designated level
     4) return the final vectors
+    5) ensure that the method that launches the server is placed in a "main" function call b/c of windows' multi-threading issues 
 
     """
-    
+
     launch_bert_as_service_server()
     bert_client = BertClient()
 
@@ -145,8 +160,9 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
         candidate_embeddings.append(bert_client.encode(candidate_summaries[i]))
         reference_embeddings.append(bert_client.encode(reference_summaries[i]))
 
-    print("ENCODINGS COMPLETED, TERMINATING SERVER")
-    BertServer.shutdown(port=5555)
+    print("ENCODINGS COMPLETED, TERMINATING SERVER...")
+    shutdown = get_shutdown_parser().parse_args(['-ip','localhost','-port','5555','-timeout','5000'])
+    BertServer.shutdown(shutdown)
 
     if n_gram_encoding == None:
         return candidate_embeddings, reference_embeddings
