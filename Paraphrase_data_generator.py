@@ -11,7 +11,6 @@ import pandas as pd
 import bert_score
 from bert_serving.client import BertClient
 from matplotlib import pyplot as plt
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import pca
 from scipy.spatial.distance import cosine
 from ROUGE import rouge_L, rouge_N
@@ -185,9 +184,10 @@ def gen_bertscore_metrics(df, sent1, sent2):
 
 # GENERATE THE DATAFRAME WITH THE METRICS 
 #"df_msrp_test =  pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/code/data_msrp_test_v1_4.csv', sep = '\t', error_bad_lines=False)
- 
+"""
 df_paws_train = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/code/data_paws_train_final.csv', sep = '\t', error_bad_lines=False)
 
 df_processed = gen_rouge_scores(df_paws_train, 'sentence1', 'sentence2', True)
 
 df_processed.to_csv('Data_paws_train_final.csv', sep='\t', encoding='utf-8')
+"""
