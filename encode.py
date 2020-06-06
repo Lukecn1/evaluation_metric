@@ -17,6 +17,10 @@ def combine_word_piece_vectors():
     Return:
         - :param: 
     """
+    """
+    Only return the vectors that remain, i.e. only return the word vectors and ignore the special tokens and the vectors for the padding 
+    """
+
 
     splitted_words_indicies = set()
 
@@ -28,19 +32,20 @@ def combine_word_piece_vectors():
 
 
 
-def get_ngram_embedding_vectors(candidate_vectors, reference_vectors, n_gram_encoding, pooling_strategy):
+def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pooling_strategy, range):
     """
     Recieves a list of vectors representing word level vectors, and combines the word-level vectors into n-gram vectors.
     
     Args:
-        - :param: `candidate_vectors` (list of lists of floats): embedding vectors for each token in each sentence of the candidate summaries 
-        - :param: 'reference_vectors` (list of lists of floats): embedding vectors for each token in each sentence of the reference summaries
+        - :param: `embedding_vectors` (list of lists of floats): embedding vectors for each token in each sentence of the summaries 
         - :param  'n_gram_encoding'   (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
         - :param: `encoding_level`    (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
         - :param: `pooling_strategy`  (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
+        - :param: `pooling_strategy`  (str): defines the index for the last word vectors 
+        
 
     Return:
-        - :param: - combined_candidate_vectors. combined_reference_vectors (list of list of floats): list of matricies of the embedding vectors for candidate and refernece summaries 
+        - :param: - combined_embedding_vectors (list of list of floats): list of matricies of the embedding vectors for the summaries 
     """
 
     """
@@ -79,29 +84,6 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
                   each summary has a list of vectors (i.e. a matrix)
     """
 
-    """
-    notes: 
-
-    different pooling strategies --> specify which to be used
-
-
-
-    include list of valid values for vector_level --> n-gram, sentence etc. (Scale up to n = 1 and up so that 1 vector for an entire summary)
-
-    return_tensors: set the value so that it returns the torch sensors
-
-    dont do comparisons on padding tokens --> find the index values for the 
-
-    implement functionality for selecting multiple layers for embedding vector retrieval
-
-    steps:
-
-    3) Extract and combine at the designated level
-    4) return the final vectors
-    5) ensure that the method that launches the server is placed in a "main" function call b/c of windows' multi-threading issues 
-
-    """
-
     launch_bert_as_service_server(model, layer, pool_word_pieces, n_gram_encoding, pooling_strategy)
     bert_client = BertClient()
 
@@ -110,12 +92,12 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
     candidate_tokens = []
     reference_tokens = []
 
-    if not pool_word_pieces:
+    if n_gram_encoding == None:
         for i in range(len(candidate_summaries)):
             candidate_embeddings.append(bert_client.encode(candidate_summaries[i]))
             reference_embeddings.append(bert_client.encode(reference_summaries[i]))
 
-    elif pool_word_pieces:
+    elif n_gram_encoding >= 1:
         for i in range(len(candidate_summaries)):
             cand_embeddings, cand_tokens = bert_client.encode(candidate_summaries[i], show_tokens = True)
             ref_embeddings, ref_tokens = bert_client.encode(reference_summaries[i], show_tokens = True)
@@ -132,10 +114,14 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
         return candidate_embeddings, reference_embeddings
 
     elif n_gram_encoding >= 1 and not pool_word_pieces:
-        get_ngram_embedding_vectors(candidate_embeddings, reference_embeddings, n_gram_encoding, pooling_strategy) 
+        candidate_embeddings = get_ngram_embedding_vectors(candidate_embeddings, n_gram_encoding, pooling_strategy) 
+        reference_embeddings = get_ngram_embedding_vectors(reference_embeddings, n_gram_encoding, pooling_strategy) 
 
     elif n_gram_encoding >= 1 and pool_word_pieces:
         cand_pooled_wordpieces = combine_word_piece_vectors(candidate_embeddings, candidate_tokens, candidate_summaries)
         ref_pooled_wordpieces = combine_word_piece_vectors(reference_embeddings, reference_tokens, reference_summaries)
-        get
 
+        candidate_embeddings = get_ngram_embedding_vectors(cand_pooled_wordpieces, n_gram_encoding, pooling_strategy)
+        reference_embeddings = get_ngram_embedding_vectors(ref_pooled_wordpieces, n_gram_encoding, pooling_strategy)
+
+    return candidate_embeddings, reference_embeddings
