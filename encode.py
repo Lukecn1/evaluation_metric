@@ -7,28 +7,57 @@ from utils import launch_bert_as_service_server, terminate_server
 
 
 
-def combine_word_piece_vectors():
+
+def get_valid_range(tokens):
+    """
+    Finds the index of the last token before the [SEP] token,
+    denoting the index of the lat word embedding vector 
+    
+    Args:
+        - :param: 'tokens' (list of strings): the BERT tokens from a given sentence
+    Return:
+        - :param: valid_range (int): index of the last valid word vector, i.e. the index of the token before [SEP]
+    """
+
+    valid_range = -1
+    
+    for i, token in enumerate(tokens, 0):
+        if token == '[SEP]':
+            valid_range = i - 1
+
+    return valid_range
+    
+
+
+
+def combine_word_piece_vectors(embedding_vectors, tokens):
     """
     Identifies the words that have been split by the BERT wordpiece tokenizer,
     and pools together their individual vectors into 1. 
     
     Args:
-        - :param: 
+        - :param: 'embedding_vectors' ()
+        - :param: 'tokens' ()
     Return:
-        - :param: 
-    """
-    """
-    Only return the vectors that remain, i.e. only return the word vectors and ignore the special tokens and the vectors for the padding 
+        - :param: 'pooled_wordpiece_vectors' (list of lists of floats): embeddings vectors post pooling of word-pieces
+        - :param: 'valid_range' (int): index of the last vector in the matrix - used for the get_ngram_embedding_vectors function
     """
 
+    pooled_wordpiece_vectors = []
+    valid_range = 0
+    j = 0
 
-    splitted_words_indicies = set()
+    for i, token in enumerate(tokens, 0):
+        if token.startswith('##'):
+            #combine(embedding_vectors[i], pooled_wordpiece_vectors[j-1])
+            print('not yet completed')
+        else:
+            pooled_wordpiece_vectors[j] = embedding_vectors[i]
+            j += 1
+    
+    valid_range = len(pooled_wordpiece_vectors) - 1
 
-    if length_words < length_tokens:
-        previous_index = -1
-        for i, token in enumerate(tokenized_sentences, 0):
-            if token.startswith('##'):
-                splitted_words_indicies.update(i-1, i) # adds the previous index and current index to the set. 
+    return pooled_wordpiece_vectors, valid_range
 
 
 
@@ -41,7 +70,7 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pooling_stra
         - :param  'n_gram_encoding'   (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
         - :param: `encoding_level`    (str): designates whether we wan the server to return word-level encodings for n-gram vectors or sentence level vectors
         - :param: `pooling_strategy`  (str): the vector combination strategy - used when 'encoding_level' == 'sentence' 
-        - :param: `pooling_strategy`  (str): defines the index for the last word vectors 
+        - :param: `range`             (int): defines the index for the last word vector -> i.e. the vector before [SEP]
         
 
     Return:
@@ -80,8 +109,8 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, n_gram_encod
 
         
     Return:
-        - :param: candidate_embeddings, reference_embeddings (list of lists of float): list of embedding vectors for the summaries
-                  each summary has a list of vectors (i.e. a matrix)
+        - :param: candidate_embeddings, (list of lists of float): list of embedding vectors for the candidate summaries
+        - :param: reference_embeddings, (list of lists of float): list of embedding vectors for the reference summaries
     """
 
     launch_bert_as_service_server(model, layer, pool_word_pieces, n_gram_encoding, pooling_strategy)
