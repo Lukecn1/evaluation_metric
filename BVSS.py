@@ -9,7 +9,7 @@ from bert_serving.server.helper import get_args_parser, get_shutdown_parser
 from bert_serving.server import BertServer
 from scipy.spatial.distance import cosine
 
-from utils import launch_bert_as_service_server
+from utils import launch_bert_as_service_server, terminate_server
 from encode import get_embedding_vectors
 
 """
@@ -92,13 +92,10 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     BVSS metric
 
     Args:
-        - :param: `candidate_vectors` (list of list of float): candidate summary embedding vectors
-        - :param: `ref_sentences` (list of list of float): reference summary embedding vectors
-                  performance may vary for non-english langauges on english pre-trained bert models     
+        - :param: `candidate_vectors` (list of list of float): candidate summary embedding vectors 
+        - :param: `reference_vectors` (list of list of float): reference summary embedding vectors
         - :param: `scoring_approach` (str): defines whether to use the argmax or mean-based scoring approaches.
-                  argmax returns the score of the highest scoring reference sentence for each candidate sentence 
-                  mean-based returns the mean of all reference sentence scores for each candidate sentence 
-
+                  
     Return:
         - :param: precision score (float): precision score for the candidate summary 
         - :param: recall score (float): recall score for the candidate summary 
@@ -125,7 +122,61 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     cosine_sum = sum(cosines)
 
     precision = cosine_sum  / len(candidate_vectors)
-    recall = cosine  / len(reference_vectors)
+    recall = cosine_sum  / len(reference_vectors)
     f1 = 2 * (precision * recall) / (precision + recall) 
 
     return precision, recall, f1
+
+
+def get_score(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
+    """
+    Returns the BVSS scores for each of the summary pairs and return them in a list. 
+
+    Args:
+        - :param: `candidate_summaries` (list of str): candidate summaries - each string is a sumary 
+        - :param: `reference_summaries` (list of str): reference summaries - each string is a summary
+        - :param: `scoring_approach`    (str): defines whether to use the argmax or mean-based scoring approaches.
+        - :param: `model`               (str): name of the model to produce the embedding vectors.
+        - :param: `layer`               (int): the model layer used to retrieve the embedding vectors.
+        - :param  'n_gram_encoding'     (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
+                                               defaults to none resulting in sentence-level embedding vectors
+        - :param: `pooling_strategy`    (str): the vector combination strategy - used when 'n_gram_encoding' == 'None' 
+                                               if 'None' -> embedding level defaults to the sentence level of each individual sentence
+        - :param: `pool_word_pieces`    (bool): whether or not to preemptively pool word pieces when doing n-gram pooling
+                                                only relevant when n_gram_encoding is not None i.e. not for sentence level vectors
+        - :param: `language`            (str): the language of the summaries, used for tokenizing the sentences - defaults to english
+       
+    Return:
+        - :param: precision scores (list of float): precision scores for the candidate summaries 
+        - :param: recall scores    (list of float): recall scores for the candidate summaries 
+        - :param: f1 scores        (list of float): f1 scores for the candidate summaries 
+    """
+    launch_bert_as_service_server(model, layer, n_gram_encoding, pooling_strategy)
+
+    precision_scores = []
+    recall_scores = []
+    f1_scores = []
+
+    candidate_summaries_sentences = []
+    reference_summaries_sentences = []
+
+    # Returns each summary as a list of its sentences
+    for i in range(len(candidate_summaries)):
+        candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
+        reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
+    
+    candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences, 
+                                                                       reference_summaries_sentences, 
+                                                                       pool_word_pieces, 
+                                                                       n_gram_encoding)
+
+    for i in range(len(candidate_embeddings)):
+        p, r, f1 = get_bvss(candidate_embeddings[i], reference_embeddings[i], scoring_approach)
+
+        precision_scores.append(p)
+        recall_scores.append(r)
+        f1_scores.append(f1)
+
+    terminate_server()
+
+    return precision_scores, recall_scores, f1_scores

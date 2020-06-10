@@ -85,16 +85,6 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
     Return:
         - :param: - final_embeddings (list of list of floats): list of matricies of the embedding vectors for the summaries 
     """
-
-    """
-    check whiteboard strategy
-
-    should return 1 list of vectors for each summary! -> this makes the computation of the score quite a lot easier to manage 
-    also contains the check for whether the wordpiece vectors needs to be pooled, and the control sequences for this functionality
-        - Each time a vector is derived -> put it into a list for that summary
-        - once the summary has no more vectors to be combined -> place that final summary "matrix" in a list
-        - once all summaries have been completed -> return the final list of all summaries
-    """
     final_embeddings = []
 
     if not pool_word_pieces:
@@ -150,6 +140,5 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, pool_word_pi
 
             candidate_embeddings.append(get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens))
             reference_embeddings.append(get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens))
-            
 
     return candidate_embeddings, reference_embeddings

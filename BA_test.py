@@ -1,3 +1,4 @@
+import numpy as np
 import bert_serving.server
 from bert_serving.client import BertClient
 from bert_serving.server.helper import get_args_parser, get_shutdown_parser
@@ -17,11 +18,13 @@ def start():
     server.start()
     bc = BertClient(ip='localhost')
     encodings, tokens = (bc.encode(['Test for wordpiece tokenizer and pad length.', 'Adding an additional sentence.'], show_tokens=True))
-    print(len(tokens[0]))
-    print(len(tokens[1]))
-    print(encodings)
-    print(encodings[0][10])
-    print(tokens[0][10])
+    print(tokens)
+    print(len(encodings[0][1: (len(tokens[0]) - 2) ]))
+    print(len(encodings[1][1: (len(tokens[1]) - 2) ]))
+    #print(encodings)
+    #print(encodings[0][11])
+    #print(type(tokens[0][11]))
+    #print(len(np.mean(np.array([ encodings[0][10], encodings[0][9] ]), axis=0)))
 
 
 
