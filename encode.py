@@ -1,5 +1,3 @@
-import torch
-import transformers
 import nltk
 import numpy as np
 from bert_serving.client import BertClient
@@ -55,21 +53,23 @@ def combine_word_piece_vectors(embedding_vectors, tokens):
         - :param: 'pooled_wordpiece_vectors' (list of lists of floats): embeddings vectors post pooling of word-pieces
         - :param: 'valid_range' (int): index of the last vector in the matrix - used for the get_ngram_embedding_vectors function
     """
-    pooled_wordpiece_vectors = []
+    pooled_wordpiece_vectors = [i for i in range(len(tokens))]
     valid_range = 0
     j = 0
+    poolings = 0
 
     for i, token in enumerate(tokens, 0):
 
         if token.startswith('##'):
-            pool_vectors([embedding_vectors[i], pooled_wordpiece_vectors[j-1]])
+            pooled_wordpiece_vectors[j-1] = pool_vectors([embedding_vectors[i], pooled_wordpiece_vectors[j-1]])
+            poolings += 1
         else:
             pooled_wordpiece_vectors[j] = embedding_vectors[i]
             j += 1
-    
-    valid_range = len(pooled_wordpiece_vectors) - 2 # -2 because we do not want the embedding vector for the '.' either 
+        
+        valid_range = i - 2 - poolings # -2 because we do not want the embedding vector for the '.' either 
 
-    return pooled_wordpiece_vectors, valid_range
+    return pooled_wordpiece_vectors[:valid_range + 1], valid_range
 
 
 
@@ -91,6 +91,7 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
         for i, sentence_matrix in enumerate(embedding_vectors, 0):
             if i > len(tokens[i]):
                 break
+
             valid_token_index = get_valid_range(tokens[i])
 
             if pool_word_pieces:
