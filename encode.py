@@ -78,7 +78,7 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
     Recieves a list of vectors representing word level vectors, and combines the word-level vectors into n-gram vectors.
     
     Args:
-        - :param: `embedding_vectors` (list of lists of floats): embedding vectors for each token in each sentence of the summaries 
+        - :param: `embedding_vectors` (list of list of lists of floats): embedding vectors for each token in each sentence in a summary -> Each sentence is represented as its own matrix
         - :param  'n_gram_encoding'   (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
         - :param: `pool_word_pieces`  (bool): if True, pools together word-vectors for those words split by the wordpiece tokenizer
         - :param: `tokens`  (list of list of str): the individual tokens for each sentence - used for finding the valid range of vectors
@@ -87,20 +87,20 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
     """
     final_embeddings = []
 
-    if not pool_word_pieces:
-        for i, sentence_matrix in enumerate(embedding_vectors, 0):
-            if i > len(tokens[i]):
-                break
+    for i, sentence_matrix in enumerate(embedding_vectors, 0):
+        if pool_word_pieces:
+            sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
 
-            valid_token_index = get_valid_range(tokens[i])
+        valid_token_index = get_valid_range(tokens[i])
 
-            if pool_word_pieces:
-                sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
+        if n_gram_encoding >= (valid_token_index - 1): # Fewer tokens than desired number of poolings -> Defaults to making a single vector for the sentence
+            final_embeddings.append(pool_vectors(sentence_matrix[1:(valid_token_index+1)]))
 
-            n = 1 # Starting at position 1 to not include the [CLS] token 
-            while n + n <= valid_token_index:
-                final_embeddings.append(pool_vectors(sentence_matrix[n:(n+n)]))
-                n += 1
+
+        n = 1 # Starting at position 1 to not include the [CLS] token 
+        while n + n <= valid_token_index:
+            final_embeddings.append(pool_vectors(sentence_matrix[n:(n+n+1)]))
+            n += 1
 
     return final_embeddings        
 
