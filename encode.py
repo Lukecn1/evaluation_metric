@@ -67,7 +67,7 @@ def combine_word_piece_vectors(embedding_vectors, tokens):
             pooled_wordpiece_vectors[j] = embedding_vectors[i]
             j += 1
         
-        valid_range = i - 2 - poolings # -2 because we do not want the embedding vector for the '.' either 
+        valid_range = i - 2 - poolings # - 2 because we do not want the embedding vector for the '.' either 
 
     return pooled_wordpiece_vectors[:valid_range + 1], valid_range
 
@@ -88,18 +88,19 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
     final_embeddings = []
 
     for i, sentence_matrix in enumerate(embedding_vectors, 0):
+        valid_token_index = get_valid_range(tokens[i])
+        
         if pool_word_pieces:
             sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
-
-        valid_token_index = get_valid_range(tokens[i])
+            print(valid_token_index)
 
         if n_gram_encoding >= (valid_token_index - 1): # Fewer tokens than desired number of poolings -> Defaults to making a single vector for the sentence
             final_embeddings.append(pool_vectors(sentence_matrix[1:(valid_token_index+1)]))
 
-
         n = 1 # Starting at position 1 to not include the [CLS] token 
-        while n + n <= valid_token_index:
-            final_embeddings.append(pool_vectors(sentence_matrix[n:(n+n+1)]))
+        while n + n_gram_encoding <= valid_token_index + 1:
+            end_index = n+n_gram_encoding
+            final_embeddings.append(pool_vectors(sentence_matrix[n:end_index]))
             n += 1
 
     return final_embeddings        
