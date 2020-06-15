@@ -118,14 +118,14 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, pool_word_pi
         - :param: `reference_summaries` (list of list of strings): reference summaries to be encoded - each summary should be represented as a list of sentences
         - :param: `pool_word_pieces` (bool): if True, pools together word-vectors for those words split by the wordpiece tokenizer 
         - :param  'n_gram_encoding' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
-                                           if 'None' -> embedding level defaults to the sentence level of each individual sentence
-      
+                                        if 'None' -> embedding level defaults to the sentence level of each individual sentence
+    
     Return:
         - :param: candidate_embeddings, (list of lists of float): list of embedding vectors for the candidate summaries
         - :param: reference_embeddings, (list of lists of float): list of embedding vectors for the reference summaries
     """
 
-    bert_client = BertClient()
+    bert_client = BertClient(ip='localhost')
 
     candidate_embeddings = []
     reference_embeddings = []
