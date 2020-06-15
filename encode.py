@@ -92,10 +92,10 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
         
         if pool_word_pieces:
             sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
-            print(valid_token_index)
 
-        if n_gram_encoding >= (valid_token_index - 1): # Fewer tokens than desired number of poolings -> Defaults to making a single vector for the sentence
+        if n_gram_encoding > (valid_token_index - 1): # Fewer tokens than desired number of poolings -> Defaults to making a single vector for the sentence
             final_embeddings.append(pool_vectors(sentence_matrix[1:(valid_token_index+1)]))
+            continue
 
         n = 1 # Starting at position 1 to not include the [CLS] token 
         while n + n_gram_encoding <= valid_token_index + 1:
