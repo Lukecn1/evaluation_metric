@@ -101,6 +101,8 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     """
     final_cosines = []
 
+    print('vector pair length: ', len(candidate_vectors), len(reference_vectors))
+
     if scoring_approach == 'argmax' or scoring_approach == 'mean':
 
         for cand_vec in candidate_vectors:
@@ -117,12 +119,18 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     else:
         print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
         return None
-
+    
+    print('Final Cosines length: ', len(final_cosines))
     cosine_sum = sum(final_cosines)
 
     precision = cosine_sum  / len(candidate_vectors)
     recall = cosine_sum  / len(reference_vectors)
-    f1 = 2 * ((precision * recall) / (precision + recall))
+    f1 = 0.0
+
+    if recall + precision == 0.0:
+        return precision, recall, f1
+    else:
+        f1 = 2 * ( (precision * recall) / (precision + recall) ) 
 
     return precision, recall, f1
 
@@ -164,6 +172,9 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
     
+    print(candidate_summaries_sentences)
+    print(reference_summaries_sentences)
+
     candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences, 
                                                                        reference_summaries_sentences, 
                                                                        pool_word_pieces, 
@@ -179,3 +190,21 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
     terminate_server()
 
     return precision_scores, recall_scores, f1_scores
+
+candidate_summaries = ['First candidate summary for testing. Another sentence for testing purposes. The final phrase is written here.', 
+                        'Second candidate summary is written here. It only consists of two sentences.', 
+                        'The third and final candidate summary is here. It has more than two sentences. Hence the third text sequence.'
+                        ]
+
+reference_summaries = [ 'Here is the first sentence of the reference summary. Only two individual sentences for this summary.', 
+                        'Start of the second reference. Testing the controlflow of the embedding functions.',
+                        'Lastly a single sentence reference summary.'
+                        ]
+
+nr_summaries = len(candidate_summaries)
+
+precision_scores, recall_scores, f1_scores = get_bvss_scores(candidate_summaries, reference_summaries, 'mean', 'bert-base-uncased', 11, 2, pool_word_pieces= True, language= 'english')
+
+print(precision_scores)
+print(recall_scores)
+print(f1_scores)
