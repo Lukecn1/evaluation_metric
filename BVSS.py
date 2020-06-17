@@ -1,13 +1,11 @@
 import pandas as pd 
 import numpy as np
-import torch
 import nltk
-import transformers
 import bert_score
 from bert_serving.client import BertClient
 from bert_serving.server.helper import get_args_parser, get_shutdown_parser
 from bert_serving.server import BertServer
-from scipy.spatial.distance import cosine
+from sklearn.metrics.pairwise import cosine_similarity
 
 from utils import launch_bert_as_service_server, terminate_server
 from encode import get_embedding_vectors
@@ -101,34 +99,35 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
         - :param: recall score (float): recall score for the candidate summary 
         - :param: f1 score (float): f1 score for the candidate summary 
     """
+    final_cosines = []
 
-    if scoring_approach != 'argmax' or scoring_approach != 'mean':
+    if scoring_approach == 'argmax' or scoring_approach == 'mean':
+
+        for cand_vec in candidate_vectors:
+            cosines = []
+            for ref_vec in reference_vectors:
+                cosines.append( cosine_similarity([cand_vec], [ref_vec])[0][0] ) # Matrix format is due to expected shape of sklearn metric
+
+            if scoring_approach == 'argmax':
+                final_cosines.append(max(cosines))
+            
+            if scoring_approach == 'mean':
+                final_cosines.append(sum(cosines) / len(cosines))
+    
+    else:
         print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
         return None
 
-    final_cosines = []
-
-    for cand_vec in candidate_vectors:
-        cosines = []
-        for ref_vec in reference_vectors:
-            cosines.append( 1 - cosine(cand_vec, ref_vec) )
-
-        if scoring_approach == 'argmax':
-            final_cosines.append(max(cosines))
-        
-        if scoring_approach == 'mean':
-            final_cosines.append(sum(cosines) / len(cosines))
-    
-    cosine_sum = sum(cosines)
+    cosine_sum = sum(final_cosines)
 
     precision = cosine_sum  / len(candidate_vectors)
     recall = cosine_sum  / len(reference_vectors)
-    f1 = 2 * (precision * recall) / (precision + recall) 
+    f1 = 2 * ((precision * recall) / (precision + recall))
 
     return precision, recall, f1
 
 
-def get_score(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
+def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
     """
     Returns the BVSS scores for each of the summary pairs and return them in a list. 
 
