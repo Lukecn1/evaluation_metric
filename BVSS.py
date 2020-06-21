@@ -99,9 +99,9 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
         - :param: recall score (float): recall score for the candidate summary 
         - :param: f1 score (float): f1 score for the candidate summary 
     """
-    final_cosines = []
-
-    print('vector pair length: ', len(candidate_vectors), len(reference_vectors))
+    precision_scores = []
+    recall_scores = []
+    f1_scores = []
 
     if scoring_approach == 'argmax' or scoring_approach == 'mean':
 
@@ -111,28 +111,37 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
                 cosines.append( cosine_similarity([cand_vec], [ref_vec])[0][0] ) # Matrix format is due to expected shape of sklearn metric
 
             if scoring_approach == 'argmax':
-                final_cosines.append(max(cosines))
+                precision_scores.append(max(cosines))
             
             if scoring_approach == 'mean':
-                final_cosines.append(sum(cosines) / len(cosines))
+                precision_scores.append(sum(cosines) / len(cosines))
+
+            print('cand', cosines)
     
+        for ref_vec in reference_vectors:
+            cosines = []
+            for cand_vec in candidate_vectors:
+                cosines.append( cosine_similarity([cand_vec], [ref_vec])[0][0] ) # Matrix format is due to expected shape of sklearn metric
+
+            if scoring_approach == 'argmax':
+                recall_scores.append(max(cosines))
+            
+            if scoring_approach == 'mean':
+                recall_scores.append(sum(cosines) / len(cosines))
+
+            print('ref', cosines)
     else:
         print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
         return None
     
-    print('Final Cosines length: ', len(final_cosines))
-    cosine_sum = sum(final_cosines)
+    #print('Final Cosines: ', final_cosines)
 
-    precision = cosine_sum  / len(candidate_vectors)
-    recall = cosine_sum  / len(reference_vectors)
-    f1 = 0.0
-
-    if recall + precision == 0.0:
-        return precision, recall, f1
-    else:
-        f1 = 2 * ( (precision * recall) / (precision + recall) ) 
+    precision = sum(precision_scores)  / len(candidate_vectors)
+    recall = sum(recall_scores)  / len(reference_vectors)
+    f1 = 2 * ( (precision * recall) / (precision + recall) ) 
 
     return precision, recall, f1
+
 
 
 def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
@@ -175,6 +184,9 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
     print(candidate_summaries_sentences)
     print(reference_summaries_sentences)
 
+    for i, _ in enumerate(candidate_summaries_sentences, 0):
+        print(get_bertscore(candidate_summaries_sentences[i], reference_summaries_sentences[i], 'bert-base-uncased', 11, 'english', 'mean'))
+
     candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences, 
                                                                        reference_summaries_sentences, 
                                                                        pool_word_pieces, 
@@ -191,6 +203,8 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
 
     return precision_scores, recall_scores, f1_scores
 
+
+
 candidate_summaries = ['First candidate summary for testing. Another sentence for testing purposes. The final phrase is written here.', 
                         'Second candidate summary is written here. It only consists of two sentences.', 
                         'The third and final candidate summary is here. It has more than two sentences. Hence the third text sequence.'
@@ -203,7 +217,16 @@ reference_summaries = [ 'Here is the first sentence of the reference summary. On
 
 nr_summaries = len(candidate_summaries)
 
-precision_scores, recall_scores, f1_scores = get_bvss_scores(candidate_summaries, reference_summaries, 'mean', 'bert-base-uncased', 11, 2, pool_word_pieces= True, language= 'english')
+precision_scores, recall_scores, f1_scores = get_bvss_scores(candidate_summaries, 
+                                                             reference_summaries, 
+                                                             scoring_approach= 'argmax', 
+                                                             model = 'bert-base-uncased', 
+                                                             layer= 11, 
+                                                             n_gram_encoding= None, 
+                                                             pooling_strategy= 'REDUCE_MEAN', 
+                                                             pool_word_pieces= False, 
+                                                             language= 'english')
+    
 
 print(precision_scores)
 print(recall_scores)
