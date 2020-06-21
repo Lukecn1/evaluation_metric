@@ -81,7 +81,7 @@ class testEncodeFunctions(unittest.TestCase):
         start(True)
         bc = BertClient(ip='localhost')
         embeddings, tokens = (bc.encode(['Test for wordpiece tokenizer and pad length.', 'Adding an additional sentence.'], show_tokens=True))
-
+        
         result_vectors_2 = get_ngram_embedding_vectors(embeddings, 2, True, tokens)
         result_vectors_3 = get_ngram_embedding_vectors(embeddings, 3, True, tokens)
         result_vectors_2_no_pool = get_ngram_embedding_vectors(embeddings, 2, False, tokens)
@@ -122,7 +122,14 @@ class testEncodeFunctions(unittest.TestCase):
         candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries, reference_summaries, False)
         terminate()
 
-        
+        self.assertEqual(len(candidate_embeddings), 3)
+        self.assertEqual(len(candidate_embeddings[0]), 3)
+        self.assertEqual(len(candidate_embeddings[1]), 2)
+        self.assertEqual(len(candidate_embeddings[2]), 3)
+        self.assertEqual(len(reference_embeddings), 3)
+        self.assertEqual(len(reference_embeddings[0]), 2)
+        self.assertEqual(len(reference_embeddings[1]), 2)
+        self.assertEqual(len(reference_embeddings[2]), 1)
 
         start(True)
         candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries, reference_summaries, True, 2)

@@ -48,7 +48,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
     server_parameters = ""
         
     if encoding_level == None:
-
+        
         if pooling_strategy not in pooling_strategies:
             print('"pooling_strategy" must be defined as one of the following:', pooling_strategies)
             return
@@ -59,7 +59,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
                                         '-max_seq_len', '50',                                        
                                         '-pooling_layer', pooling_layer,
                                         '-pooling_strategy', pooling_strategy, 
-                                        '-num_workers', '=1'])
+                                        '-num_worker=1'])
     
     
     elif encoding_level >=1:
@@ -70,7 +70,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
                                         '-pooling_layer', pooling_layer,
                                         '-pooling_strategy', 'NONE',
                                         '-show_tokens_to_client',
-                                        '-num_workers', '=1'])
+                                        '-num_worker=1'])
     else:
         print('"encoding_level" must be >=1 or None, see README for descriptions')
         return
