@@ -115,8 +115,6 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
             
             if scoring_approach == 'mean':
                 precision_scores.append(sum(cosines) / len(cosines))
-
-            print('cand', cosines)
     
         for ref_vec in reference_vectors:
             cosines = []
@@ -129,12 +127,10 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
             if scoring_approach == 'mean':
                 recall_scores.append(sum(cosines) / len(cosines))
 
-            print('ref', cosines)
     else:
+
         print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
         return None
-    
-    #print('Final Cosines: ', final_cosines)
 
     precision = sum(precision_scores)  / len(candidate_vectors)
     recall = sum(recall_scores)  / len(reference_vectors)
@@ -142,6 +138,61 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
 
     return precision, recall, f1
 
+
+def get_bvss_improved(candidate_vectors, reference_vectors, scoring_approach):
+    """
+    Calculates the metric score for the given candidate summary wrt. the reference summary
+
+    Args:
+        - :param: `candidate_vectors` (list of list of float): candidate summary embedding vectors 
+        - :param: `reference_vectors` (list of list of float): reference summary embedding vectors
+        - :param: `scoring_approach` (str): defines whether to use the argmax or mean-based scoring approaches.
+                  
+    Return:
+        - :param: precision score (float): precision score for the candidate summary 
+        - :param: recall score (float): recall score for the candidate summary 
+        - :param: f1 score (float): f1 score for the candidate summary 
+    """
+
+    scores = np.zeros( ( len(candidate_vectors), len(reference_vectors) ) )
+
+    precision_scores = []
+    recall_scores = []
+
+    if scoring_approach == 'argmax' or scoring_approach == 'mean':
+
+        for i, cand_vec in enumerate(candidate_vectors, 0):
+            for j, ref_vec in enumerate(reference_vectors, 0):
+                scores[i][j] = cosine_similarity([cand_vec], [ref_vec])[0][0]
+
+        for i, _ in enumerate(candidate_vectors, 0):
+
+            if scoring_approach == 'argmax':
+                precision_scores.append(max(scores[i, :]))
+                
+            if scoring_approach == 'mean':
+                cosines = scores[i, :]
+                precision_scores.append( sum(cosines) / len(cosines) )
+
+        for i, _ in enumerate(reference_vectors, 0):
+
+            if scoring_approach == 'argmax':
+                recall_scores.append(max(scores[:, i]))
+                
+            if scoring_approach == 'mean':
+                cosines = scores[:, i]
+                recall_scores.append( sum(cosines) / len(cosines) )
+    else:
+
+        print("scoring_approach parameter must be defined as either 'argmax' or 'mean'. Check the README for descriptions of each.")
+        return None
+    
+    precision = sum(precision_scores)  / len(candidate_vectors)
+    recall = sum(recall_scores)  / len(reference_vectors)
+    f1 = 2 * ( (precision * recall) / (precision + recall) ) 
+
+    return precision, recall, f1
+    
 
 
 def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
@@ -181,8 +232,6 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
     
-    print(candidate_summaries_sentences)
-    print(reference_summaries_sentences)
 
     for i, _ in enumerate(candidate_summaries_sentences, 0):
         print(get_bertscore(candidate_summaries_sentences[i], reference_summaries_sentences[i], 'bert-base-uncased', 11, 'english', 'mean'))
@@ -194,6 +243,8 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
 
     for i in range(len(candidate_embeddings)):
         p, r, f1 = get_bvss(candidate_embeddings[i], reference_embeddings[i], scoring_approach)
+
+        print(get_bvss_improved(candidate_embeddings[i], reference_embeddings[i], scoring_approach))
 
         precision_scores.append(p)
         recall_scores.append(r)
@@ -222,9 +273,9 @@ precision_scores, recall_scores, f1_scores = get_bvss_scores(candidate_summaries
                                                              scoring_approach= 'argmax', 
                                                              model = 'bert-base-uncased', 
                                                              layer= 11, 
-                                                             n_gram_encoding= None, 
-                                                             pooling_strategy= 'REDUCE_MEAN', 
-                                                             pool_word_pieces= False, 
+                                                             n_gram_encoding= 4, 
+                                                             pooling_strategy= None, 
+                                                             pool_word_pieces= True, 
                                                              language= 'english')
     
 
