@@ -106,13 +106,16 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
             for j, ref_vec in enumerate(reference_vectors, 0):
                 scores[i][j] = cosine_similarity([cand_vec], [ref_vec])[0][0]
 
+        #print('SCORES')
+        #print(scores)
+
         for i, _ in enumerate(candidate_vectors, 0):
 
             if scoring_approach == 'argmax':
                 precision_scores.append(max(scores[i, :]))
                 
             if scoring_approach == 'mean':
-                cosines = scores[i, :]
+                cosines = scores[i, :].tolist()
                 precision_scores.append( sum(cosines) / len(cosines) )
 
         for i, _ in enumerate(reference_vectors, 0):
@@ -121,7 +124,7 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
                 recall_scores.append(max(scores[:, i]))
                 
             if scoring_approach == 'mean':
-                cosines = scores[:, i]
+                cosines = scores[:, i].tolist()
                 recall_scores.append( sum(cosines) / len(cosines) )
     else:
 
@@ -160,6 +163,7 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         - :param: f1 scores        (list of float): f1 scores for the candidate summaries 
     """
     launch_bert_as_service_server(model, layer, n_gram_encoding, pooling_strategy)
+    bert_client = BertClient(ip='localhost')
 
     precision_scores = []
     recall_scores = []
@@ -170,22 +174,46 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
 
     # Returns each summary as a list of its sentences
     for i in range(len(candidate_summaries)):
+        """
+        print('reference')
+        print(reference_summaries[i])
+        print()
+        print('candidate')
+        print(candidate_summaries[i])
+        """
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
     
 
-    candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences, 
-                                                                       reference_summaries_sentences, 
-                                                                       pool_word_pieces, 
-                                                                       n_gram_encoding)
+    for i in range(len(candidate_summaries_sentences)):
+        
+        print('Candidate')
+        print(candidate_summaries_sentences[i])
 
-    for i in range(len(candidate_embeddings)):
-        p, r, f1 = get_bvss(candidate_embeddings[i], reference_embeddings[i], scoring_approach)
+        print('Reference')
+        print(reference_summaries_sentences[i])
+
+        candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences[i], 
+                                                                           reference_summaries_sentences[i], 
+                                                                           pool_word_pieces,
+                                                                           bert_client, 
+                                                                           n_gram_encoding)
+
+
+        p, r, f1 = get_bvss(candidate_embeddings, reference_embeddings, scoring_approach)
 
         precision_scores.append(p)
         recall_scores.append(r)
         f1_scores.append(f1)
 
+    """
+    done = False
+    while not done:
+        if len(candidate_embeddings) == len(candidate_summaries) and len(reference_embeddings) == len(reference_summaries):
+            done = True
+    """
+
     terminate_server()
+    
 
     return precision_scores, recall_scores, f1_scores
