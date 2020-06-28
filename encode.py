@@ -108,7 +108,7 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
 
 
 
-def get_embedding_vectors(candidate_summaries, reference_summaries, pool_word_pieces, n_gram_encoding = None):
+def get_embedding_vectors(candidate_summary, reference_summary, pool_word_pieces, bert_client, n_gram_encoding = None):
     """
     Generates the embedding vectors for the given sentences/tokens
     Uses the BERT-as-Service Client to produce the vectors. 
@@ -117,6 +117,7 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, pool_word_pi
         - :param: `candidate_summaries` (list of list of strings): candidate summaries to be encoded - each summary should be represented as a list of sentences
         - :param: `reference_summaries` (list of list of strings): reference summaries to be encoded - each summary should be represented as a list of sentences
         - :param: `pool_word_pieces` (bool): if True, pools together word-vectors for those words split by the wordpiece tokenizer 
+        - :param: `bert_client` (BertClient): bert client from bert-as-service library to get the embeddings
         - :param  'n_gram_encoding' (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
                                         if 'None' -> embedding level defaults to the sentence level of each individual sentence
     
@@ -125,22 +126,18 @@ def get_embedding_vectors(candidate_summaries, reference_summaries, pool_word_pi
         - :param: reference_embeddings, (list of lists of float): list of embedding vectors for the reference summaries
     """
 
-    bert_client = BertClient(ip='localhost')
-
     candidate_embeddings = []
     reference_embeddings = []
 
-    if n_gram_encoding == None:
-        for i in range(len(candidate_summaries)):
-            candidate_embeddings.append(bert_client.encode(candidate_summaries[i]))
-            reference_embeddings.append(bert_client.encode(reference_summaries[i]))
+    if n_gram_encoding == None: 
+        candidate_embeddings = bert_client.encode(candidate_summary)
+        reference_embeddings = bert_client.encode(reference_summary)
 
     elif n_gram_encoding >= 1:
-        for i in range(len(candidate_summaries)):
-            cand_embeddings, cand_tokens = bert_client.encode(candidate_summaries[i], show_tokens = True)
-            ref_embeddings, ref_tokens = bert_client.encode(reference_summaries[i], show_tokens = True)
+        cand_embeddings, cand_tokens = bert_client.encode(candidate_summary, show_tokens = True)
+        ref_embeddings, ref_tokens = bert_client.encode(reference_summary, show_tokens = True)
 
-            candidate_embeddings.append(get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens))
-            reference_embeddings.append(get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens))
+        candidate_embeddings = get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens)
+        reference_embeddings = get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens)
 
     return candidate_embeddings, reference_embeddings
