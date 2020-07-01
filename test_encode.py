@@ -1,13 +1,9 @@
 import numpy as np
 import unittest
-import bert_serving.server
 from nltk import sent_tokenize
-from bert_serving.client import BertClient
-from bert_serving.server.helper import get_args_parser, get_shutdown_parser
-from bert_serving.server import BertServer
 from scipy.spatial.distance import cosine
-
-from encode import pool_vectors, get_valid_range, combine_word_piece_vectors, get_ngram_embedding_vectors, get_embedding_vectors
+from utils import get_bert_model
+from encode import pool_vectors, combine_word_piece_vectors, get_ngram_embedding_vectors, get_embedding_vectors, get_embeddings
 
 """
 Unit tests for the encode functions. 
@@ -32,13 +28,13 @@ The tests are designed to ensure that the following items are done consistently 
 
     4) That the above functionality is kept when changing the BERT model
         4.1) mBERT and other languages than english
-        4.2) RoBERTa ? --> It is useable for BERT as service? 
-        4.3) Danish BERT --> work with bert as service?
+        4.2) Danish BERT 
+        4.3) sentence-bert
 """
 
 class testEncodeFunctions(unittest.TestCase):
 
-    def test_pool_vectors(self, BERT_vectors = None):
+    def test_pool_vectors(self):
         vectors_zero = [[0, 0, -0, -0], [0, 0,-0, -0], [0, 0, -0, -0], [0, 0, -0, -0]]
         vectors_float = [[3.4, 6.2, 4.5, -5.5], [4.3, 2.6, 5.4, 5.5], [2.4, 3.2, 6.5, 8.5], [5.4, -7.2, 2.5, -1.5]]
 
@@ -49,13 +45,6 @@ class testEncodeFunctions(unittest.TestCase):
         self.assertAlmostEqual(pool_vectors(vectors_float)[2], 4.725)
         self.assertAlmostEqual(pool_vectors(vectors_float)[3], 1.75)
 
-        if BERT_vectors is not None:
-            self.assertEqual(len(pool_vectors(BERT_vectors)), 768)
-
-
-    def test_get_valid_range(self):
-        self.assertEqual(get_valid_range(['[CLS]', 'Test', 'sentence', 'for', 'range', '.', '[SEP]']), 4)
-
 
     def test_combine_word_piece_vectors(self):
         vectors_no_split = [[3.4, 6.2, 4.5, -5.5], [3.3, 6.2, 4.5, -5.5], [4.3, 2.6, 5.4, 5.5], [5.4, 3.2, 6.5, 8.5], [5.4, -7.2, 2.5, -1.5]]
@@ -65,10 +54,15 @@ class testEncodeFunctions(unittest.TestCase):
         tokens_split_2  = ['[CLS]', 'Token', '##ize', 'word', '##piece', '.', '[SEP]']
         result_split_2 = str(combine_word_piece_vectors(vectors_split_2, tokens_split_2)[0])
         
+        """
+        print(result_split_2)
+        print('[[3.4, 6.2, 4.5, -5.5], [3.8, 4.4, 4.95, 0.0], [5.4, -2.0, 4.5, 3.5]]')
+        """
+
         vectors_split_2_plus = [[3.4, 6.2, 4.5, -5.5], [3.3, 6.2, 4.5, -5.5], [4.3, 2.6, 5.4, 5.5], [5.4, 3.2, 6.5, 8.5], [5.4, -7.2, 2.5, -1.5], [4.4, 2.2, 9.8, 7.4], [5.6, 7.6, 8.0, 2.2], [3.4, 6.2, 4.5, -5.5], [3.4, 6.2, 4.5, -5.5]]
         tokens_split_2_plus  = ['[CLS]', 'Token', '##ize', 'word', '##piece', 'extra', 'words', '.', '[SEP]']
         result_split_2_plus = str(combine_word_piece_vectors(vectors_split_2_plus, tokens_split_2_plus)[0])
-    
+
         self.assertEqual(combine_word_piece_vectors(vectors_split_2, tokens_no_split)[0], vectors_no_split)    
         self.assertEqual(len(combine_word_piece_vectors(vectors_split_2, tokens_split_2)[0]), 3)        
         self.assertEqual(combine_word_piece_vectors(vectors_split_2, tokens_split_2)[1], 2)        
@@ -77,10 +71,12 @@ class testEncodeFunctions(unittest.TestCase):
         
 
     def test_get_ngram_embedding_vectors(self):
-    
-        start(True)
-        bc = BertClient(ip='localhost')
-        embeddings, tokens = (bc.encode(['Test for wordpiece tokenizer and pad length.', 'Adding an additional sentence.'], show_tokens=True))
+        
+        model_name = 'bert-base-uncased'
+
+        model, tokenizer = get_bert_model(model_name)
+
+        embeddings, tokens = get_embeddings(['Test for wordpiece tokenizer and pad length.', 'Adding an additional sentence.'], model_name, model, 11, tokenizer)
         
         result_vectors_2 = get_ngram_embedding_vectors(embeddings, 2, True, tokens)
         result_vectors_3 = get_ngram_embedding_vectors(embeddings, 3, True, tokens)
@@ -92,7 +88,6 @@ class testEncodeFunctions(unittest.TestCase):
         pooled_wp_3 = pool_vectors( [embeddings[0][1], embeddings[0][2], pool_vectors(embeddings[0][3:5])])
         pooled_wp_3_no_wp = pool_vectors(embeddings[0][1:4])
 
-        terminate()
         
         self.assertEqual(len(result_vectors_2), 9)
         self.assertEqual(len(result_vectors_3), 7)
@@ -108,7 +103,7 @@ class testEncodeFunctions(unittest.TestCase):
 
     def test_get_embedding_vectors(self):
 
-        candidate_summaries = [ ['First candidate summary for testing.', 'Another sentence for testing purposes.', 'The final phrase is written here.'], 
+        candidate_summaries = [ ['First candidate summary for testing.', 'Another sentence for testing purposes.', 'The final phrase is written here.', '.'], 
                                 ['Second candidate summary is written here.', 'It only consists of two sentences.'], 
                                 ['The third and final candidate summary is here.', 'It has more than two sentences.', 'Hence the third text sequence.'] 
                                 ]
@@ -118,22 +113,37 @@ class testEncodeFunctions(unittest.TestCase):
                                 ['Lastly a single sentence reference summary.'] 
                                 ]
 
-        start(False)
-        candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries, reference_summaries, False)
-        terminate()
+        model, tokenizer = get_bert_model('sentence-bert')
+
+        candidate_embeddings = []
+        reference_embeddings = []
+
+        for i, _ in enumerate(candidate_summaries, 0):
+            cand_embs, ref_embs = get_embedding_vectors(candidate_summaries[i], reference_summaries[i], False, n_gram_encoding= None, layer = 11, model_name= 'sentence-bert', model= model)
+            candidate_embeddings.append(cand_embs)
+            reference_embeddings.append(ref_embs)
+
 
         self.assertEqual(len(candidate_embeddings), 3)
-        self.assertEqual(len(candidate_embeddings[0]), 3)
+        self.assertEqual(len(candidate_embeddings[0]), 4)
         self.assertEqual(len(candidate_embeddings[1]), 2)
         self.assertEqual(len(candidate_embeddings[2]), 3)
         self.assertEqual(len(reference_embeddings), 3)
         self.assertEqual(len(reference_embeddings[0]), 2)
         self.assertEqual(len(reference_embeddings[1]), 2)
         self.assertEqual(len(reference_embeddings[2]), 1)
+        
 
-        start(True)
-        candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries, reference_summaries, True, 2)
-        terminate()
+        model_name = 'bert-base-uncased'
+        model_1, tokenizer_1 = get_bert_model(model_name)
+
+        candidate_embeddings = []
+        reference_embeddings = []
+
+        for i, _ in enumerate(candidate_summaries, 0):
+            cand_embs, ref_embs = get_embedding_vectors(candidate_summaries[i], reference_summaries[i], True, n_gram_encoding= 2, layer = 11, model_name= model_name, model= model_1, tokenizer= tokenizer_1)
+            candidate_embeddings.append(cand_embs)
+            reference_embeddings.append(ref_embs)
 
         self.assertEqual(len(candidate_embeddings), 3)
         self.assertEqual(len(candidate_embeddings[0]), 13)
@@ -143,37 +153,3 @@ class testEncodeFunctions(unittest.TestCase):
         self.assertEqual(len(reference_embeddings[0]), 14)
         self.assertEqual(len(reference_embeddings[1]), 10)
         self.assertEqual(len(reference_embeddings[2]), 5)
-
-
-
-
-def start(word_tokens):
-
-    if word_tokens:
-        server_parameters = get_args_parser().parse_args(['-model_dir', 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/uncased_L-12_H-768_A-12/',
-                                    '-max_seq_len', '50',                  
-                                    '-pooling_layer', '-2',
-                                    '-pooling_strategy', 'NONE', 
-                                    '-show_tokens_to_client',    
-                                    '-num_worker=1'])
-
-        bert_server = BertServer(server_parameters)
-        print("LAUNCHING SERVER, PLEASE HOLD", '\n')
-        bert_server.start()
-    elif not word_tokens:
-        server_parameters = get_args_parser().parse_args(['-model_dir', 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/uncased_L-12_H-768_A-12/',
-                                '-max_seq_len', '50',                  
-                                '-pooling_layer', '-2',
-                                '-pooling_strategy', 'REDUCE_MEAN',     
-                                '-num_worker=1'])
-
-        bert_server = BertServer(server_parameters)
-        print("LAUNCHING SERVER, PLEASE HOLD", '\n')
-        bert_server.start()
-    
-
-
-def terminate():
-    # Shuts down the server
-    shutdown = get_shutdown_parser().parse_args(['-ip','localhost','-port','5555','-timeout','5000'])
-    BertServer.shutdown(shutdown)

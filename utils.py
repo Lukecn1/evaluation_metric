@@ -1,3 +1,48 @@
+import torch
+from transformers import BertModel, BertTokenizer, AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
+
+bert_models = ['bert-base-uncased',
+               'bert-base-cased',
+               'bert-large-uncased',
+               'bert-large-cased',
+               'bert-base-multilingual-uncased',
+               'bert-base-multilingual-cased'
+               ]
+
+roberta_models = ['roberta-base',
+                  'roberta-large']
+
+def get_bert_model(model_name):
+    """
+    Retrieves the pretrained model and tokenizer from the transformers library. 
+
+    """
+    model = None
+    tokenizer = None
+
+    if model_name in bert_models:
+        tokenizer = BertTokenizer.from_pretrained(model_name)        
+        model = BertModel.from_pretrained(model_name, output_hidden_states=True)
+    
+    elif model_name == 'sentence-bert':
+        model = SentenceTransformer('bert-base-nli-stsb-mean-tokens')
+
+    elif model_name == 'danish-bert':                    
+        model_directory = 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/bert-base-danish-uncased-v2'
+        tokenizer = AutoTokenizer.from_pretrained(model_directory)
+        model = AutoModel.from_pretrained(model_directory)
+    
+    else: 
+        print('model must be specified as one of the supported ones. Check readme for more details')
+        return
+
+    return model, tokenizer
+
+
+
+# Deprecated lists and functions related to bert-as-service functionality 
+
 from bert_serving.client import BertClient
 from bert_serving.server.helper import get_args_parser, get_shutdown_parser
 from bert_serving.server import BertServer
@@ -5,6 +50,7 @@ from bert_serving.server import BertServer
 bert_model_directories = {'bert-base-uncased' : 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/uncased_L-12_H-768_A-12/', 
                           'bert-base-cased' : 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/cased_L-12_H-768_A-12/', 
                           'mbert' : 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/multi_cased_L-12_H-768_A-12/'}
+
 
 # Convention of layer naming for the bert-as-service server
 layers_bert_base = {1 : '-12', 
@@ -56,7 +102,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
         server_parameters = get_args_parser().parse_args(['-model_dir', model_path,
                                         '-port', '5555',
                                         '-port_out', '5556',
-                                        '-max_seq_len', '50',                                        
+                                        '-max_seq_len', '100',                                        
                                         '-pooling_layer', pooling_layer,
                                         '-pooling_strategy', pooling_strategy, 
                                         '-num_worker=1'])
@@ -66,7 +112,7 @@ def launch_bert_as_service_server(model_name, layer, encoding_level = None, pool
                 server_parameters = get_args_parser().parse_args(['-model_dir', model_path,
                                         '-port', '5555',
                                         '-port_out', '5556',
-                                        '-max_seq_len', '50',                                        
+                                        '-max_seq_len', '100',                                        
                                         '-pooling_layer', pooling_layer,
                                         '-pooling_strategy', 'NONE',
                                         '-show_tokens_to_client',

@@ -2,22 +2,10 @@ import pandas as pd
 import numpy as np
 import nltk
 import bert_score
-from bert_serving.client import BertClient
-from bert_serving.server.helper import get_args_parser, get_shutdown_parser
-from bert_serving.server import BertServer
 from sklearn.metrics.pairwise import cosine_similarity
-
-from utils import launch_bert_as_service_server, terminate_server
+from utils import get_bert_model
 from encode import get_embedding_vectors
 
-"""
-df_tac = pd.read_csv('C:/Users/Lukas/ITU/Master_Thesis/Metric_paper/Data/TAC/TAC_ROUGE-HUMAN-REF.csv', sep= '\t')
-print(df_tac['Summary'])
-print(df_tac['refsum1'])
-print(df_tac['refsum2'])
-print(df_tac['refsum3'])
-print(df_tac['refsum4'])
-"""
 
 
 def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring_approach):
@@ -80,6 +68,8 @@ def get_bertscore(cand_sentences, ref_sentences, model, layer, language, scoring
     return precision_score, recall_score, f1_score
 
 
+
+
 def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     """
     Calculates the metric score for the given candidate summary wrt. the reference summary
@@ -106,8 +96,8 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
             for j, ref_vec in enumerate(reference_vectors, 0):
                 scores[i][j] = cosine_similarity([cand_vec], [ref_vec])[0][0]
 
-        #print('SCORES')
-        #print(scores)
+        print('SCORES')
+        print(scores)
 
         for i, _ in enumerate(candidate_vectors, 0):
 
@@ -133,13 +123,17 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     
     precision = sum(precision_scores)  / len(candidate_vectors)
     recall = sum(recall_scores)  / len(reference_vectors)
+
+    #print('precision: ', precision)
+    #print('recall: ', recall)
+
     f1 = 2 * ( (precision * recall) / (precision + recall) ) 
 
     return precision, recall, f1
     
 
 
-def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, model, layer, n_gram_encoding = None, pooling_strategy = None, pool_word_pieces = False, language = 'english'):
+def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, model_name, layer, n_gram_encoding = None, pool_word_pieces = False, language = 'english'):
     """
     Returns the BVSS scores for each of the summary pairs and return them in a list. 
 
@@ -147,12 +141,10 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         - :param: `candidate_summaries` (list of str): candidate summaries - each string is a sumary 
         - :param: `reference_summaries` (list of str): reference summaries - each string is a summary
         - :param: `scoring_approach`    (str): defines whether to use the argmax or mean-based scoring approaches.
-        - :param: `model`               (str): name of the model to produce the embedding vectors.
+        - :param: `model_name`          (str): the specific bert model to use
         - :param: `layer`               (int): the model layer used to retrieve the embedding vectors.
         - :param  'n_gram_encoding'     (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
                                                defaults to none resulting in sentence-level embedding vectors
-        - :param: `pooling_strategy`    (str): the vector combination strategy - used when 'n_gram_encoding' == 'None' 
-                                               if 'None' -> embedding level defaults to the sentence level of each individual sentence
         - :param: `pool_word_pieces`    (bool): whether or not to preemptively pool word pieces when doing n-gram pooling
                                                 only relevant when n_gram_encoding is not None i.e. not for sentence level vectors
         - :param: `language`            (str): the language of the summaries, used for tokenizing the sentences - defaults to english
@@ -162,8 +154,8 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         - :param: recall scores    (list of float): recall scores for the candidate summaries 
         - :param: f1 scores        (list of float): f1 scores for the candidate summaries 
     """
-    launch_bert_as_service_server(model, layer, n_gram_encoding, pooling_strategy)
-    bert_client = BertClient(ip='localhost')
+    
+    model, tokenizer = get_bert_model(model_name)
 
     precision_scores = []
     recall_scores = []
@@ -174,30 +166,28 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
 
     # Returns each summary as a list of its sentences
     for i in range(len(candidate_summaries)):
-        """
-        print('reference')
-        print(reference_summaries[i])
-        print()
-        print('candidate')
-        print(candidate_summaries[i])
-        """
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
     
 
     for i in range(len(candidate_summaries_sentences)):
         
+        """
         print('Candidate')
         print(candidate_summaries_sentences[i])
 
         print('Reference')
         print(reference_summaries_sentences[i])
+        """
 
         candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences[i], 
                                                                            reference_summaries_sentences[i], 
                                                                            pool_word_pieces,
-                                                                           bert_client, 
-                                                                           n_gram_encoding)
+                                                                           n_gram_encoding, 
+                                                                           layer,
+                                                                           model_name,
+                                                                           model,
+                                                                           tokenizer)
 
 
         p, r, f1 = get_bvss(candidate_embeddings, reference_embeddings, scoring_approach)
@@ -205,15 +195,5 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
         precision_scores.append(p)
         recall_scores.append(r)
         f1_scores.append(f1)
-
-    """
-    done = False
-    while not done:
-        if len(candidate_embeddings) == len(candidate_summaries) and len(reference_embeddings) == len(reference_summaries):
-            done = True
-    """
-
-    terminate_server()
-    
 
     return precision_scores, recall_scores, f1_scores

@@ -1,31 +1,12 @@
 import numpy as np
 import math
 import unittest
-import bert_serving.server
 from nltk import sent_tokenize
-from bert_serving.client import BertClient
-from bert_serving.server.helper import get_args_parser, get_shutdown_parser
-from bert_serving.server import BertServer
 from scipy.spatial.distance import cosine
 
 from BVSS import get_bvss, get_bvss_scores
-from utils import launch_bert_as_service_server, terminate_server
-from encode import pool_vectors, get_valid_range, combine_word_piece_vectors, get_ngram_embedding_vectors, get_embedding_vectors
-
-"""
-The tests are designed to test the following:
-    
-    1) Mathematical conceptualization of metric holds
-        1.1) Correct and consistent calculations - DONE
-            1.1.2) precision, recall & f1 scores for each scoring approach - DONE
-        1.2) Scoring approaches are correct and distinct - DONE
-        1.3) Test sklearn implementation of cosine similarity - DONE
-    
-    2) Control flow of the entire program
-        2.1) Correct number of scores returned (i.e. 1 pr. candidate summary)
-        2.2) If summaries are identical, their score is close to 1 (few decimals)
-
-"""
+from utils import get_bert_model
+from encode import pool_vectors, combine_word_piece_vectors, get_ngram_embedding_vectors, get_embedding_vectors, get_embeddings
 
 
 class testScoringFunctions(unittest.TestCase):
@@ -41,13 +22,12 @@ class testScoringFunctions(unittest.TestCase):
                              [6.4, 3.2, 7.8, 5.1], 
                              [1.4, -7.3, 1.5, -1.5]]
 
-
         cand_ort_vectors = [[1, 0, 1, 0]]
         ref_ort_vectors  = [[0, 1, 0, 1]]
         cand_eq_vec = [[0, 1, 0, 1]]   
 
-        results_eq = get_bvss(cand_eq_vec, ref_ort_vectors, 'mean')
-        results_ort = get_bvss(cand_ort_vectors, ref_ort_vectors, 'mean')
+        results_eq = get_bvss(cand_eq_vec, ref_ort_vectors, 'argmax')
+        results_ort = get_bvss(cand_ort_vectors, ref_ort_vectors, 'argmax')
         results_mean_function = get_bvss(candidate_vectors, reference_vectors, 'mean')
         results_argmax_function = get_bvss(candidate_vectors, reference_vectors, 'argmax')
         
@@ -68,7 +48,61 @@ class testScoringFunctions(unittest.TestCase):
         self.assertEqual(results_ort[1], 0.0)
 
 
-    # tests the control-flow of the entire program, by calling the main function that initializes the calculation of scores
+    def test_score_consistency(self):
+        cand_1 = ['This is a test for whether the same candidate summary gets the same score. With a second sentence.']
+        cand_2 = ['This is a test for whether the same candidate summary gets the same score. With a second sentence.']
+        ref = ['Here is the reference summary for testing scoring consisitency.']
+
+        self.assertEqual(cand_1[0], cand_2[0])
+
+        p_1, r_1, f1_1 = get_bvss_scores(cand_1, 
+                                   ref, 
+                                   scoring_approach = 'mean', 
+                                   model_name = 'bert-base-uncased', 
+                                   layer= 11, 
+                                   n_gram_encoding= 2,
+                                   pool_word_pieces= True, 
+                                   language= 'english')
+
+        p_2, r_2, f1_2 = get_bvss_scores(cand_2, 
+                                         ref, 
+                                         scoring_approach = 'mean', 
+                                         model_name = 'bert-base-uncased', 
+                                         layer= 11, 
+                                         n_gram_encoding= 2,
+                                         pool_word_pieces= True, 
+                                         language= 'english')
+        
+
+        p_1_sent, r_1_sent, f1_1_sent = get_bvss_scores(cand_1, 
+                                                        ref, 
+                                                        scoring_approach = 'argmax', 
+                                                        model_name = 'sentence-bert', 
+                                                        layer= 11,                                                 
+                                                        n_gram_encoding=  None,
+                                                        pool_word_pieces= False, 
+                                                        language= 'english')
+
+        p_2_sent, r_2_sent, f1_2_sent = get_bvss_scores(cand_2, 
+                                                        ref, 
+                                                        scoring_approach = 'argmax', 
+                                                        model_name = 'sentence-bert', 
+                                                        layer= 11, 
+                                                        n_gram_encoding= None,
+                                                        pool_word_pieces= False, 
+                                                        language= 'english')
+
+        self.assertEqual(p_1[0], p_2[0])
+        self.assertEqual(r_1[0], r_2[0])
+        self.assertEqual(f1_1[0], f1_2[0])
+
+        self.assertEqual(p_1_sent[0], p_2_sent[0])
+        self.assertEqual(r_1_sent[0], r_2_sent[0])
+        self.assertEqual(f1_1_sent[0], f1_2_sent[0])
+        
+
+
+
     def test_control_flow(self):
 
         candidate_summaries = ['First candidate summary for testing. Another sentence for testing purposes. The final phrase is written here.', 
@@ -82,16 +116,41 @@ class testScoringFunctions(unittest.TestCase):
                                 ]
 
 
-        precision_scores, recall_scores, f1_scores = get_bvss_scores(candidate_summaries, 
+        precision_scores_mean, recall_scores_mean, f1_scores_mean = get_bvss_scores(candidate_summaries, 
                                                                      reference_summaries, 
                                                                      scoring_approach = 'mean', 
-                                                                     model = 'bert-base-uncased', 
+                                                                     model_name = 'bert-base-uncased', 
                                                                      layer= 11, 
                                                                      n_gram_encoding= 2,
-                                                                      pool_word_pieces= True, 
-                                                                      language= 'english')
+                                                                     pool_word_pieces= True, 
+                                                                     language= 'english')
+        
 
-        self.assertEqual(len(precision_scores), 3)
-        self.assertEqual(len(recall_scores), 3)
-        self.assertEqual(len(f1_scores), 3)
-        self.assertGreater()
+
+        self.assertEqual(len(precision_scores_mean), 3)
+        self.assertEqual(len(recall_scores_mean), 3)
+        self.assertEqual(len(f1_scores_mean), 3)
+        self.assertNotEqual(f1_scores_mean[0], f1_scores_mean[1])
+        self.assertNotEqual(f1_scores_mean[1], f1_scores_mean[2])
+        self.assertNotEqual(f1_scores_mean[0], f1_scores_mean[2])
+
+        
+        precision_scores_max, recall_scores_max, f1_scores_max = get_bvss_scores(candidate_summaries, 
+                                                                     reference_summaries, 
+                                                                     scoring_approach = 'argmax', 
+                                                                     model_name = 'bert-base-uncased', 
+                                                                     layer= 11, 
+                                                                     n_gram_encoding= 2,
+                                                                     pool_word_pieces= True, 
+                                                                     language= 'english')
+
+        print(precision_scores_max)
+        print(recall_scores_max)
+        print(f1_scores_max)
+
+        self.assertNotEqual(f1_scores_max[0], f1_scores_max[1])
+        self.assertNotEqual(f1_scores_max[1], f1_scores_max[2])
+        self.assertNotEqual(f1_scores_max[0], f1_scores_max[2])
+        self.assertNotEqual(precision_scores_mean[0], precision_scores_max[0])
+        self.assertNotEqual(recall_scores_mean[0], recall_scores_max[0])
+        self.assertNotEqual(f1_scores_mean[0], f1_scores_max[0])
