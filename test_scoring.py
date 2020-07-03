@@ -26,6 +26,7 @@ class testScoringFunctions(unittest.TestCase):
         ref_ort_vectors  = [[0, 1, 0, 1]]
         cand_eq_vec = [[0, 1, 0, 1]]   
 
+        
         results_eq = get_bvss(cand_eq_vec, ref_ort_vectors, 'argmax')
         results_ort = get_bvss(cand_ort_vectors, ref_ort_vectors, 'argmax')
         results_mean_function = get_bvss(candidate_vectors, reference_vectors, 'mean')
@@ -107,13 +108,11 @@ class testScoringFunctions(unittest.TestCase):
 
         candidate_summaries = ['First candidate summary for testing. Another sentence for testing purposes. The final phrase is written here.', 
                                'Second candidate summary is written here. It only consists of two sentences.', 
-                                'The third and final candidate summary is here. It has more than two sentences. Hence the third text sequence.'
-                                ]
+                                'The third and final candidate summary is here. It has more than two sentences. Hence the third text sequence.']
         
         reference_summaries = [ 'Here is the first sentence of the reference summary. Only two individual sentences for this summary.', 
                                 'Start of the second reference. Testing the controlflow of the embedding functions.',
-                                'Lastly a single sentence reference summary.'
-                                ]
+                                'Lastly a single sentence reference summary.']
 
 
         precision_scores_mean, recall_scores_mean, f1_scores_mean = get_bvss_scores(candidate_summaries, 
@@ -124,8 +123,7 @@ class testScoringFunctions(unittest.TestCase):
                                                                      n_gram_encoding= 2,
                                                                      pool_word_pieces= True, 
                                                                      language= 'english')
-        
-
+    
 
         self.assertEqual(len(precision_scores_mean), 3)
         self.assertEqual(len(recall_scores_mean), 3)
@@ -143,10 +141,7 @@ class testScoringFunctions(unittest.TestCase):
                                                                      n_gram_encoding= 2,
                                                                      pool_word_pieces= True, 
                                                                      language= 'english')
-
-        print(precision_scores_max)
-        print(recall_scores_max)
-        print(f1_scores_max)
+                                 
 
         self.assertNotEqual(f1_scores_max[0], f1_scores_max[1])
         self.assertNotEqual(f1_scores_max[1], f1_scores_max[2])

@@ -96,9 +96,6 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
             for j, ref_vec in enumerate(reference_vectors, 0):
                 scores[i][j] = cosine_similarity([cand_vec], [ref_vec])[0][0]
 
-        print('SCORES')
-        print(scores)
-
         for i, _ in enumerate(candidate_vectors, 0):
 
             if scoring_approach == 'argmax':
@@ -123,9 +120,6 @@ def get_bvss(candidate_vectors, reference_vectors, scoring_approach):
     
     precision = sum(precision_scores)  / len(candidate_vectors)
     recall = sum(recall_scores)  / len(reference_vectors)
-
-    #print('precision: ', precision)
-    #print('recall: ', recall)
 
     f1 = 2 * ( (precision * recall) / (precision + recall) ) 
 
@@ -168,18 +162,10 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
     for i in range(len(candidate_summaries)):
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
-    
 
     for i in range(len(candidate_summaries_sentences)):
-        
-        """
-        print('Candidate')
-        print(candidate_summaries_sentences[i])
 
-        print('Reference')
-        print(reference_summaries_sentences[i])
-        """
-
+    
         candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences[i], 
                                                                            reference_summaries_sentences[i], 
                                                                            pool_word_pieces,

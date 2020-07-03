@@ -187,12 +187,6 @@ def get_embedding_vectors(candidate_summary, reference_summary, pool_word_pieces
         cand_embeddings, cand_tokens = get_embeddings(candidate_summary, model_name, model, layer, tokenizer)
         ref_embeddings, ref_tokens = get_embeddings(reference_summary, model_name, model, layer, tokenizer)
 
-        print('CANDIDATE')
-        print(cand_tokens)
-        print()
-        print('REFERENCE')
-        print(ref_tokens)
-
         candidate_embeddings = get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens)
         reference_embeddings = get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens)
 
