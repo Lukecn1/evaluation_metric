@@ -7,15 +7,14 @@ The main application of this metric is to assess the similarity between a candid
 The scoring algorithm consists of two central steps:
 
 #### 1) Encoding 
-Obtaining embedding vectors from a pretrained BERT-based model. We use the BERT as service package (https://github.com/hanxiao/bert-as-service) to retrieve the embedding vectors.
+Obtaining embedding vectors from a pretrained BERT-based model. 
 
 #### 2) Scoring 
 Calculating the score using cosine similarity. 
 
 
-
 ### Installation requirements
 * Python version >= 3.6
-* Tensorflow version =< 1.15.2 (1.15.2 recommended for stability reasons)
-* bert-as-service (https://github.com/hanxiao/bert-as-service)
-* nltk (packages for tokenization at the least)
+* huggingface/transformers (https://github.com/huggingface/transformers)
+* Sentence-Transformers (https://github.com/UKPLab/sentence-transformers) 
+* nltk (packages for tokenization for different languages)
