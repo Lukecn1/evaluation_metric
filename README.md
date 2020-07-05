@@ -1,6 +1,6 @@
 # Text Similarity Assesment using BERT
 
-Using the contextually-dependent embeddings obtained from BERT to assess the similarity of a candidate- and reference-text using cosine similarity. 
+Using the contextually-dependent word-embeddings obtained from pretrained transformer models (primarily BERT models) to assess the similarity of a candidate- and reference-text pair using cosine similarity. 
 The main application of this metric is to assess the similarity between a candidate- and reference-summary.
 
 ### Algorithm
