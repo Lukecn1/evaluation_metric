@@ -7,8 +7,10 @@ bert_models = ['bert-base-uncased',
                'bert-large-uncased',
                'bert-large-cased',
                'bert-base-multilingual-uncased',
-               'bert-base-multilingual-cased'
+               'bert-base-multilingual-cased',
+               'danish-bert'                     # In order to setup the Danish BERT model properly please consult the repo README
                ]
+
 
 roberta_models = ['roberta-base',
                   'roberta-large']
@@ -71,8 +73,6 @@ pooling_strategies = ['REDUCE_MEAN',
                       'REDUCE_MEAN_MAX',
                       'CLS_TOKEN',
                       'SEP_TOKEN']
-
-
 
 
 def launch_bert_as_service_server(model_name, layer, encoding_level = None, pooling_strategy = None):

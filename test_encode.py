@@ -80,6 +80,7 @@ class testEncodeFunctions(unittest.TestCase):
         
         result_vectors_2 = get_ngram_embedding_vectors(embeddings, 2, True, tokens)
         result_vectors_3 = get_ngram_embedding_vectors(embeddings, 3, True, tokens)
+        print('error part')
         result_vectors_2_no_pool = get_ngram_embedding_vectors(embeddings, 2, False, tokens)
         result_vectors_3_no_pool = get_ngram_embedding_vectors(embeddings, 3, False, tokens)
         results_large_n = get_ngram_embedding_vectors(embeddings, 12, False, tokens)
@@ -90,12 +91,12 @@ class testEncodeFunctions(unittest.TestCase):
 
         
         self.assertEqual(len(result_vectors_2), 9)
-        self.assertEqual(len(result_vectors_3), 7)
         self.assertEqual(len(result_vectors_2_no_pool), 11)
-        self.assertEqual(len(result_vectors_3_no_pool), 9)
         self.assertEqual(result_vectors_2[0], pool_vectors(embeddings[0][1:3]))
         self.assertEqual(result_vectors_2[1], pooled_wp_2)
         self.assertEqual(result_vectors_2_no_pool[1], pooled_wp_2_no_wp)
+        self.assertEqual(len(result_vectors_3_no_pool), 9)
+        self.assertEqual(len(result_vectors_3), 7)
         self.assertEqual(result_vectors_3[0], pooled_wp_3)
         self.assertEqual(result_vectors_3_no_pool[0], pooled_wp_3_no_wp)
         self.assertEqual(len(results_large_n), 2)

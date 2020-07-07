@@ -1,6 +1,7 @@
 import pandas as pd 
 import numpy as np
 import nltk
+import torch
 import bert_score
 from sklearn.metrics.pairwise import cosine_similarity
 from utils import get_bert_model
@@ -158,13 +159,13 @@ def get_bvss_scores(candidate_summaries, reference_summaries, scoring_approach, 
     candidate_summaries_sentences = []
     reference_summaries_sentences = []
 
-    # Returns each summary as a list of its sentences
     for i in range(len(candidate_summaries)):
         candidate_summaries_sentences.append(nltk.sent_tokenize(candidate_summaries[i], language= language))
         reference_summaries_sentences.append(nltk.sent_tokenize(reference_summaries[i], language= language))
 
     for i in range(len(candidate_summaries_sentences)):
 
+        #print(i)
     
         candidate_embeddings, reference_embeddings = get_embedding_vectors(candidate_summaries_sentences[i], 
                                                                            reference_summaries_sentences[i], 

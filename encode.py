@@ -33,14 +33,13 @@ def combine_word_piece_vectors(embedding_vectors, tokens):
         - :param: 'pooled_wordpiece_vectors' (list of lists of floats): embeddings vectors post pooling of word-pieces
         - :param: 'valid_range' (int): index of the last vector in the matrix - used for the get_ngram_embedding_vectors function
     """
-
+    
     pooled_wordpiece_vectors = [i for i in range(len(tokens))]
     valid_range = 0
     j = 0
     poolings = 0
 
     for i, token in enumerate(tokens, 0):
-
         if token.startswith('##'):
             pooled_wordpiece_vectors[j-1] = pool_vectors([embedding_vectors[i], pooled_wordpiece_vectors[j-1]])
             poolings += 1
@@ -73,16 +72,16 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
     for i, sentence_matrix in enumerate(embedding_vectors, 0):
         valid_token_index = len(tokens[i]) - 3
 
-        if valid_token_index <= 2: # Avoids sentence with 2 tokens or less  
+        if valid_token_index <= 3: # Avoids sentence with 3 tokens or less  
             continue
 
         if pool_word_pieces:
             sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
-
-        if n_gram_encoding > (valid_token_index - 1): # Fewer tokens than desired number of poolings -> Defaults to making a single vector for the sentence
-            final_embeddings.append(pool_vectors(sentence_matrix[1:(valid_token_index)]))
+    
+        if n_gram_encoding >= (valid_token_index): # Fewer or same amount of tokens as desired n-gram for pooling -> Defaults to making a single vector for the sentence
+            final_embeddings.append(pool_vectors(sentence_matrix[1:valid_token_index + 1]))
             continue
-            
+        
         n = 1 # Starting at position 1 to not include the [CLS] token 
         while n + n_gram_encoding <= valid_token_index + 1:
             end_index = n+n_gram_encoding
@@ -90,8 +89,6 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
             n += 1
 
     return final_embeddings        
-
-
 
 
 def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
@@ -115,15 +112,18 @@ def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
     final_tokens = []
     final_embeddings = []
 
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
+
     if model_name == 'sentence-bert':
         embeddings = model.encode(summary)
         
         for vector in embeddings:
             final_embeddings.append(vector.tolist())
-        
+
         return final_embeddings
 
-    model_inputs = tokenizer.batch_encode_plus(summary, max_length = 128)
+    model_inputs = tokenizer.batch_encode_plus(summary, max_length = 256)
 
     input_token_ids = model_inputs['input_ids']
     attention_masks = model_inputs['attention_mask']
@@ -135,13 +135,17 @@ def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
             inputs =  torch.tensor([input_token_ids[i]])
             masks =  torch.tensor([attention_masks[i]])
 
+            if device == 'cuda':
+                inputs = inputs.to(device)
+                masks = masks.to(device)
+
             if model_name in bert_models:
                 hidden_states = model(inputs, masks)[2]
                 vectors = hidden_states[layer][0].tolist()
 
             elif model_name == 'danish-bert':
                 hidden_states = model(inputs, masks)[0]
-                vectors = hidden_states[0].tolist()
+                vectors = hidden_states[layer][0].tolist()
 
             final_embeddings.append(vectors)
 
