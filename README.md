@@ -16,5 +16,5 @@ Calculating the score using cosine similarity.
 ### Installation requirements
 * Python version >= 3.6
 * huggingface/transformers (https://github.com/huggingface/transformers)
-* Sentence-Transformers (https://github.com/UKPLab/sentence-transformers) 
 * nltk (packages for tokenization for different languages)
+* for Danish BERT model setup, follow the guide created by Daniel Varab Here: https://github.com/danielvarab/convert_da_bert
