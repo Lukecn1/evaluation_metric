@@ -99,14 +99,13 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
 
 
 
-def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
+def get_embeddings(summary, model, layer, tokenizer):
     """
     Retrieves the embeddings from the pretrained model using the transformers library
     Check README for details on the models supported for this
 
     Args:
         - :param: `summary`             (list of string): summary to be encoded
-        - :param: `model_name`          (str): the specific bert model to use
         - :param: `model`               (transformers model object): pretrained model from the transformers library to use of retrieving encodings
         - :param: `layer`               (int): the layer of representation to use
         - :param: `tokenizer`           (transformers tokenizer object): tokenizer for the specific model from the transformers library
