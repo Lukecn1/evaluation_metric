@@ -21,6 +21,7 @@ def pool_vectors(vectors):
     
 
 
+
 def combine_word_piece_vectors(embedding_vectors, tokens):
     """
     Identifies the words that have been split by the BERT wordpiece tokenizer,
@@ -57,11 +58,12 @@ def combine_word_piece_vectors(embedding_vectors, tokens):
 def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pieces, tokens):
     """
     Combines the word-level vectors into n-gram vectors.
-    Ignores the vectors for [CLS], [SEP] and the final '.'. 
+    Ignores the vectors for [CLS], [SEP] and the final '.' 
     
     Args:
         - :param: `embedding_vectors` (list of list of lists of floats): embedding vectors for each token in each sentence in a summary -> Each sentence is represented as its own matrix
-        - :param  'n_gram_encoding'   (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector                            
+        - :param  'n_gram_encoding'   (int): n-gram encoding level - desginates how many word-vectors to combine for each final n-gram-embedding-vector            
+                                             if 'None' -> Creates 1 vector pr. sentence in the summary                 
         - :param: `pool_word_pieces`  (bool): if True, pools together word-vectors for those words split by the wordpiece tokenizer
         - :param: `tokens`  (list of list of str): the individual tokens for each sentence - used for finding the valid range of vectors
     Return:
@@ -75,10 +77,14 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
         if valid_token_index <= 3: # Avoids sentence with 3 tokens or less  
             continue
 
+        if n_gram_encoding is None:
+            final_embeddings.append(pool_vectors(sentence_matrix[1:valid_token_index + 1]))
+            continue
+
         if pool_word_pieces:
             sentence_matrix, valid_token_index = combine_word_piece_vectors(sentence_matrix, tokens[i])
     
-        if n_gram_encoding >= (valid_token_index): # Fewer or same amount of tokens as desired n-gram for pooling -> Defaults to making a single vector for the sentence
+        if n_gram_encoding >= valid_token_index: # Fewer or same amount of tokens as desired n-gram for pooling -> Defaults to making a single vector for the sentence
             final_embeddings.append(pool_vectors(sentence_matrix[1:valid_token_index + 1]))
             continue
         
@@ -88,7 +94,9 @@ def get_ngram_embedding_vectors(embedding_vectors, n_gram_encoding, pool_word_pi
             final_embeddings.append(pool_vectors(sentence_matrix[n:end_index]))
             n += 1
 
-    return final_embeddings        
+    return final_embeddings       
+
+
 
 
 def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
@@ -115,16 +123,7 @@ def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
 
-    if model_name == 'sentence-bert':
-        embeddings = model.encode(summary)
-        
-        for vector in embeddings:
-            final_embeddings.append(vector.tolist())
-
-        return final_embeddings
-
     model_inputs = tokenizer.batch_encode_plus(summary, max_length = 256)
-
     input_token_ids = model_inputs['input_ids']
     attention_masks = model_inputs['attention_mask']
 
@@ -139,13 +138,8 @@ def get_embeddings(summary, model_name, model, layer = None, tokenizer = None):
                 inputs = inputs.to(device)
                 masks = masks.to(device)
 
-            if model_name in bert_models:
-                hidden_states = model(inputs, masks)[2]
-                vectors = hidden_states[layer][0].tolist()
-
-            elif model_name == 'danish-bert':
-                hidden_states = model(inputs, masks)[0]
-                vectors = hidden_states[layer][0].tolist()
+            hidden_states = model(inputs, masks)[2]
+            vectors = hidden_states[layer][0].tolist()
 
             final_embeddings.append(vectors)
 
@@ -172,7 +166,7 @@ def get_embedding_vectors(candidate_summary, reference_summary, pool_word_pieces
         - :param: `model`               (transformers model object): pretrained model from the transformers library to use of retrieving encodings
         - :param: `tokenizer`           (transformers tokenizer object): tokenizer for the specific model from the transformers library
         - :param  'n_gram_encoding'     (int): n-gram encoding level - desginates how many word vectors to combine for each final embedding vector
-                                               'None' when 'sentence-bert' model is used 
+                                               if 'None' -> Generates a single vector pr. sentence in the summary 
     
     Return:
         - :param: candidate_embeddings, (list of lists of float): list of embedding vectors for the candidate summaries
@@ -182,16 +176,10 @@ def get_embedding_vectors(candidate_summary, reference_summary, pool_word_pieces
     candidate_embeddings = []
     reference_embeddings = []
 
-    if model_name == 'sentence-bert':
-        candidate_embeddings = get_embeddings(candidate_summary, model_name, model)
-        reference_embeddings = get_embeddings(reference_summary, model_name, model)
-        return candidate_embeddings, reference_embeddings
+    cand_embeddings, cand_tokens = get_embeddings(candidate_summary, model_name, model, layer, tokenizer)
+    ref_embeddings, ref_tokens = get_embeddings(reference_summary, model_name, model, layer, tokenizer)
 
-    elif n_gram_encoding >= 1:
-        cand_embeddings, cand_tokens = get_embeddings(candidate_summary, model_name, model, layer, tokenizer)
-        ref_embeddings, ref_tokens = get_embeddings(reference_summary, model_name, model, layer, tokenizer)
-
-        candidate_embeddings = get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens)
-        reference_embeddings = get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens)
+    candidate_embeddings = get_ngram_embedding_vectors(cand_embeddings, n_gram_encoding, pool_word_pieces, cand_tokens)
+    reference_embeddings = get_ngram_embedding_vectors(ref_embeddings, n_gram_encoding, pool_word_pieces, ref_tokens)
 
     return candidate_embeddings, reference_embeddings

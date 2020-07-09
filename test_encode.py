@@ -80,7 +80,6 @@ class testEncodeFunctions(unittest.TestCase):
         
         result_vectors_2 = get_ngram_embedding_vectors(embeddings, 2, True, tokens)
         result_vectors_3 = get_ngram_embedding_vectors(embeddings, 3, True, tokens)
-        print('error part')
         result_vectors_2_no_pool = get_ngram_embedding_vectors(embeddings, 2, False, tokens)
         result_vectors_3_no_pool = get_ngram_embedding_vectors(embeddings, 3, False, tokens)
         results_large_n = get_ngram_embedding_vectors(embeddings, 12, False, tokens)
@@ -114,19 +113,19 @@ class testEncodeFunctions(unittest.TestCase):
                                 ['Lastly a single sentence reference summary.'] 
                                 ]
 
-        model, tokenizer = get_bert_model('sentence-bert')
+        model, tokenizer = get_bert_model('deepset/sentence_bert')
 
         candidate_embeddings = []
         reference_embeddings = []
 
         for i, _ in enumerate(candidate_summaries, 0):
-            cand_embs, ref_embs = get_embedding_vectors(candidate_summaries[i], reference_summaries[i], False, n_gram_encoding= None, layer = 11, model_name= 'sentence-bert', model= model)
+            cand_embs, ref_embs = get_embedding_vectors(candidate_summaries[i], reference_summaries[i], False, n_gram_encoding= None, layer = 11, model_name= 'deepset/sentence_bert', model= model, tokenizer = tokenizer)
             candidate_embeddings.append(cand_embs)
             reference_embeddings.append(ref_embs)
 
 
         self.assertEqual(len(candidate_embeddings), 3)
-        self.assertEqual(len(candidate_embeddings[0]), 4)
+        self.assertEqual(len(candidate_embeddings[0]), 3)
         self.assertEqual(len(candidate_embeddings[1]), 2)
         self.assertEqual(len(candidate_embeddings[2]), 3)
         self.assertEqual(len(reference_embeddings), 3)
@@ -134,7 +133,6 @@ class testEncodeFunctions(unittest.TestCase):
         self.assertEqual(len(reference_embeddings[1]), 2)
         self.assertEqual(len(reference_embeddings[2]), 1)
         
-
         model_name = 'bert-base-uncased'
         model_1, tokenizer_1 = get_bert_model(model_name)
 

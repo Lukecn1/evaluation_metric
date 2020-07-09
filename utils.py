@@ -2,13 +2,17 @@ import torch
 from transformers import BertModel, BertTokenizer, AutoTokenizer, AutoModel
 from sentence_transformers import SentenceTransformer
 
+
+# In order to setup the Danish BERT model properly please consult the repo README
+# deepset sentence model is an instance of the 'bert-base-nli-stsb-mean-tokens' pretrained model from the Sentence Transformers Repo (https://github.com/UKPLab/sentence-transformers)
 bert_models = ['bert-base-uncased',
                'bert-base-cased',
                'bert-large-uncased',
                'bert-large-cased',
                'bert-base-multilingual-uncased',
                'bert-base-multilingual-cased',
-               'danish-bert'                     # In order to setup the Danish BERT model properly please consult the repo README
+               'danish-bert',                  
+               'deepset/sentence_bert'
                ]
 
 
@@ -17,24 +21,20 @@ roberta_models = ['roberta-base',
 
 def get_bert_model(model_name):
     """
-    Retrieves the pretrained model and tokenizer from the transformers library. 
-
+    Retrieves the pretrained model and tokenizer from the transformers library.
     """
     model = None
     tokenizer = None
 
-    if model_name in bert_models:
+    if model_name == 'danish-bert':                    
+        model_directory = 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/bert-base-danish-uncased-v2'
+        tokenizer = BertTokenizer.from_pretrained(model_directory)
+        model = BertModel.from_pretrained(model_directory, output_hidden_states = True)
+
+    elif model_name in bert_models:
         tokenizer = BertTokenizer.from_pretrained(model_name)        
         model = BertModel.from_pretrained(model_name, output_hidden_states=True)
-    
-    elif model_name == 'sentence-bert':
-        model = SentenceTransformer('bert-base-nli-stsb-mean-tokens')
 
-    elif model_name == 'danish-bert':                    
-        model_directory = 'C:/Users/Lukas/ITU/Master_Thesis/Transformers/bert/bert-base-danish-uncased-v2'
-        tokenizer = AutoTokenizer.from_pretrained(model_directory)
-        model = AutoModel.from_pretrained(model_directory)
-    
     else: 
         print('model must be specified as one of the supported ones. Check readme for more details')
         return
