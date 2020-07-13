@@ -96,10 +96,26 @@ def generate_n_gram_scores(df):
 
         model, tokenizer = utils.get_bert_model(model_name)
 
-        for scoring in scorings:
-            for ngram in n_grams:
-                for wp in wps:
-                    for layer in layers:
+        for layer in layers:
+
+            for i, _ in enumerate(cand_sums):
+                cand_sum = sent_tokenize(cand_sums[i], language= 'english')
+                ref1_sum = sent_tokenize(ref1[i], language= 'english')
+                ref2_sum = sent_tokenize(ref2[i], language= 'english')
+                ref3_sum = sent_tokenize(ref3[i], language= 'english')
+                ref4_sum = sent_tokenize(ref4[i], language= 'english')
+
+                cand_vecs, cand_tokens = encode.get_embeddings(cand_sum, model, layer, tokenizer)
+                ref1_vecs, ref1_tokens = encode.get_embeddings(ref1_sum, model, layer, tokenizer) 
+                ref2_vecs, ref2_tokens = encode.get_embeddings(ref2_sum, model, layer, tokenizer)
+                ref3_vecs, ref3_tokens = encode.get_embeddings(ref3_sum, model, layer, tokenizer)
+                ref4_vecs, ref4_tokens = encode.get_embeddings(ref4_sum, model, layer, tokenizer)
+                print('Encoding completed')
+
+
+            for scoring in scorings:
+                for ngram in n_grams:
+                    for wp in wps:
                         
                         iteration_name = ""
 
@@ -115,18 +131,6 @@ def generate_n_gram_scores(df):
                         final_f1_scores = []
 
                         for i, _ in enumerate(cand_sums):
-
-                            cand_sum = sent_tokenize(cand_sums[i], language= 'english')
-                            ref1_sum = sent_tokenize(ref1[i], language= 'english')
-                            ref2_sum = sent_tokenize(ref2[i], language= 'english')
-                            ref3_sum = sent_tokenize(ref3[i], language= 'english')
-                            ref4_sum = sent_tokenize(ref4[i], language= 'english')
-
-                            cand_vecs, cand_tokens = encode.get_embeddings(cand_sum, model, layer, tokenizer)
-                            ref1_vecs, ref1_tokens = encode.get_embeddings(ref1_sum, model, layer, tokenizer) 
-                            ref2_vecs, ref2_tokens = encode.get_embeddings(ref2_sum, model, layer, tokenizer)
-                            ref3_vecs, ref3_tokens = encode.get_embeddings(ref3_sum, model, layer, tokenizer)
-                            ref4_vecs, ref4_tokens = encode.get_embeddings(ref4_sum, model, layer, tokenizer)
 
                             final_cand_vecs = encode.get_ngram_embedding_vectors(cand_vecs, ngram, wp, cand_tokens)
                             final_ref1_vecs = encode.get_ngram_embedding_vectors(ref1_vecs, ngram, wp, ref1_tokens)
